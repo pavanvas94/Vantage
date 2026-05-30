@@ -1,0 +1,8 @@
+# Temporary files
+brace_output.txt
+brace_output_utf8.txt
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db

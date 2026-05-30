@@ -1,0 +1,89 @@
+-- ===================================================================
+-- Vantage Database Migration: Members & Notifications
+-- ===================================================================
+
+-- 1. Create vantage_members table to track registered collaborators
+CREATE TABLE IF NOT EXISTS public.vantage_members (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    workspace_owner TEXT NOT NULL,          -- Owner's email address
+    name TEXT NOT NULL,                     -- Participant name
+    role TEXT NOT NULL,                     -- e.g. 'ops', 'rd', 'sales', 'marketing', 'finance'
+    status TEXT NOT NULL DEFAULT 'active',   -- 'active' (registered) or 'invited' (pending click)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(workspace_owner, name)
+);
+
+-- 2. Create vantage_notifications table for real-time alerts
+CREATE TABLE IF NOT EXISTS public.vantage_notifications (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    workspace_owner TEXT NOT NULL,          -- Workspace creator
+    recipient_email TEXT NOT NULL,          -- Target recipient
+    sender_name TEXT NOT NULL,              -- Alert author
+    type TEXT NOT NULL,                     -- 'mention', 'assign', 'alert', 'bundle'
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    card_id TEXT,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable Row-Level Security (RLS)
+ALTER TABLE public.vantage_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vantage_notifications ENABLE ROW LEVEL SECURITY;
+
+-- Create policies (Tenant-separated checks mapping auth.jwt() ->> 'email')
+CREATE POLICY "Allow select for members" ON public.vantage_members FOR SELECT USING (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow insert for members" ON public.vantage_members FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow update for members" ON public.vantage_members FOR UPDATE USING (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow delete for members" ON public.vantage_members FOR DELETE USING (auth.jwt() ->> 'email' = workspace_owner);
+
+CREATE POLICY "Allow select for notifications" ON public.vantage_notifications FOR SELECT USING (auth.jwt() ->> 'email' = workspace_owner OR auth.jwt() ->> 'email' = recipient_email);
+CREATE POLICY "Allow insert for notifications" ON public.vantage_notifications FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow update for notifications" ON public.vantage_notifications FOR UPDATE USING (auth.jwt() ->> 'email' = workspace_owner OR auth.jwt() ->> 'email' = recipient_email);
+CREATE POLICY "Allow delete for notifications" ON public.vantage_notifications FOR DELETE USING (auth.jwt() ->> 'email' = workspace_owner);
+
+-- Enable Realtime replication for notifications
+-- Run this in your Supabase DB to stream updates directly to client browser:
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_notifications;
+
+-- 3. Phase 7 Enterprise Readiness: Add permission_role column to vantage_members
+ALTER TABLE public.vantage_members ADD COLUMN IF NOT EXISTS permission_role TEXT DEFAULT 'contributor';
+
+-- 4. Create vantage_cards table to sync local card boards to cloud db
+CREATE TABLE IF NOT EXISTS public.vantage_cards (
+    id TEXT PRIMARY KEY,
+    workspace_owner TEXT NOT NULL,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable Row-Level Security (RLS) on vantage_cards
+ALTER TABLE public.vantage_cards ENABLE ROW LEVEL SECURITY;
+
+-- Tenant-separated RLS policies for vantage_cards
+CREATE POLICY "Allow select for cards" ON public.vantage_cards FOR SELECT USING (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow insert for cards" ON public.vantage_cards FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow update for cards" ON public.vantage_cards FOR UPDATE USING (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow delete for cards" ON public.vantage_cards FOR DELETE USING (auth.jwt() ->> 'email' = workspace_owner);
+
+-- 5. Create vantage_audit_logs table to record immutable security operations
+CREATE TABLE IF NOT EXISTS public.vantage_audit_logs (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    workspace_owner TEXT NOT NULL,
+    user_email TEXT NOT NULL,
+    action TEXT NOT NULL,
+    details TEXT NOT NULL,
+    ip_address TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable Row-Level Security (RLS) on vantage_audit_logs
+ALTER TABLE public.vantage_audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- Immutable Append-Only RLS Policies (Select and Insert only, block Update and Delete)
+CREATE POLICY "Allow select for audit logs" ON public.vantage_audit_logs FOR SELECT USING (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow insert for audit logs" ON public.vantage_audit_logs FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = workspace_owner OR auth.jwt() ->> 'email' = user_email);
+-- (NO UPDATE OR DELETE POLICIES CREATED FOR SECURITY COMPLIANCE)
+
+

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vantage - Premium Startup Progression & Context Board</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles/landing.css">
+</head>
+<body class="landing-body">
+    <!-- Navigation -->
+    <header class="landing-header glass">
+        <div class="logo-wrap">
+            <div class="brand-logo">
+                <i data-lucide="compass" class="logo-icon"></i>
+            </div>
+            <h2>Vantage</h2>
+        </div>
+        <nav class="header-nav">
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="auth.html" class="btn btn-secondary btn-sm">Sign In</a>
+            <a href="auth.html" class="btn btn-primary btn-sm">Get Started</a>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <span class="hero-tagline glass"><i data-lucide="sparkles"></i> AI-Powered Collaboration for Modern Startups</span>
+            <h1>Keep Your Team Aligned on <span>Context</span> and <span>Heritage</span></h1>
+            <p class="hero-subtext">The startup-friendly management platform that moves beyond fragmented chats. Import WhatsApp discussions, structure actionable pipelines, and maintain the decision history of your business automatically.</p>
+            <div class="hero-actions">
+                <a href="auth.html" class="btn btn-primary btn-lg">Launch Your Workspace <i data-lucide="arrow-right"></i></a>
+                <a href="#features" class="btn btn-secondary btn-lg">Explore Features</a>
+            </div>
+        </div>
+
+        <div class="hero-preview-wrap">
+            <div class="hero-app-mockup glass">
+                <div class="mockup-header">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                    <span class="mockup-title">vantage-workspace-app</span>
+                </div>
+                <div class="mockup-body">
+                    <div class="mockup-sidebar">
+                        <div class="line logo"></div>
+                        <div class="line active"></div>
+                        <div class="line"></div>
+                        <div class="line"></div>
+                    </div>
+                    <div class="mockup-content">
+                        <div class="mockup-grid">
+                            <div class="mockup-col card-glow">
+                                <div class="mockup-card-header">Backlog</div>
+                                <div class="mockup-item"></div>
+                                <div class="mockup-item"></div>
+                            </div>
+                            <div class="mockup-col">
+                                <div class="mockup-card-header">Active Work</div>
+                                <div class="mockup-item active"></div>
+                            </div>
+                            <div class="mockup-col">
+                                <div class="mockup-card-header">Review</div>
+                                <div class="mockup-item"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features-section">
+        <div class="section-title">
+            <h2>Designed for Rapid Startup Execution</h2>
+            <p>Ditch cluttered Trello boards. Focus on context, logistics, and decisions.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card glass">
+                <div class="feat-icon bg-purple"><i data-lucide="message-square-plus"></i></div>
+                <h3>Smart Chat Importer</h3>
+                <p>Paste fragmented WhatsApp groups or Slack threads. The AI automatically parses tasks, creates checklists, and populates your backlog.</p>
+            </div>
+            <div class="feature-card glass">
+                <div class="feat-icon bg-blue"><i data-lucide="compass"></i></div>
+                <h3>Preserved Context</h3>
+                <p>Every card links directly to its strategic importance, Google Drive briefs, and HubSpot deals. No more missing document sheets.</p>
+            </div>
+            <div class="feature-card glass">
+                <div class="feat-icon bg-green"><i data-lucide="history"></i></div>
+                <h3>Permanent Heritage</h3>
+                <p>Maintains an audit feed of every single supplier change, formulation pivot, and retail agreement. Maintain alignment as your team grows.</p>
+            </div>
+            <div class="feature-card glass">
+                <div class="feat-icon bg-orange"><i data-lucide="sparkles"></i></div>
+                <h3>AI Co-Pilot Assistant</h3>
+                <p>Get custom technical checklists, R&D risk assessment reviews, and retail outreach copy drafts generated directly within your task cards.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="pricing-section">
+        <div class="section-title">
+            <h2>Flexible Pricing Built for Growth</h2>
+            <p>Start local for free, upgrade to real-time database collaboration as you scale.</p>
+        </div>
+        <div class="pricing-grid">
+            <div class="price-card glass">
+                <h4>Local Sandbox</h4>
+                <div class="price">Free <span>/ lifetime</span></div>
+                <p class="price-desc">Full access to dashboards, boards, offline AI simulator, and local storage database.</p>
+                <ul>
+                    <li><i data-lucide="check"></i> 1 Local User</li>
+                    <li><i data-lucide="check"></i> 5 Active Departments</li>
+                    <li><i data-lucide="check"></i> Offline AI Co-Pilot Simulator</li>
+                    <li><i data-lucide="check"></i> Local Storage Persistence</li>
+                </ul>
+                <a href="auth.html" class="btn btn-secondary">Get Started</a>
+            </div>
+
+            <div class="price-card glass featured-price">
+                <div class="popular-ribbon">POPULAR</div>
+                <h4>Team Cloud</h4>
+                <div class="price">$19 <span>/ month</span></div>
+                <p class="price-desc">Connect your real-time Supabase database, save settings, and collaborate with your entire team.</p>
+                <ul>
+                    <li><i data-lucide="check"></i> Unlimited Team Members</li>
+                    <li><i data-lucide="check"></i> Real-time DB Sync (Supabase)</li>
+                    <li><i data-lucide="check"></i> Live Gemini API Key support</li>
+                    <li><i data-lucide="check"></i> Slack & Teams Webhooks Integration</li>
+                    <li><i data-lucide="check"></i> User Roles & Access Control</li>
+                </ul>
+                <a href="auth.html" class="btn btn-primary">Try Free for 14 Days</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+        <p>&copy; 2026 Vantage Progression Hub. All rights reserved. Designed for startup efficiency.</p>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

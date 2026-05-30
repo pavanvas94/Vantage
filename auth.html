@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vantage - Authentication</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase Client JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Vantage Config Constants -->
+    <script src="js/config.js"></script>
+    <link rel="stylesheet" href="styles/auth.css">
+</head>
+<body class="auth-body">
+    <div class="auth-container glass" style="position: relative;">
+        <!-- Floating Environment Settings Gear -->
+        <button id="env-settings-btn" class="env-settings-trigger" title="Configure Database & AI Environment">
+            <i data-lucide="settings"></i>
+        </button>
+
+        <!-- Environment Settings Overlay Panel -->
+        <div id="env-settings-overlay" class="env-settings-overlay hide">
+            <div class="env-settings-header">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="shield-check" class="text-purple"></i>
+                    <h4>Environment Configuration</h4>
+                </div>
+                <button id="env-settings-close" class="env-close-btn">&times;</button>
+            </div>
+            <p class="env-settings-desc">Select database and AI API providers. Changes are stored locally in your browser cache to secure auth routing.</p>
+            
+            <div class="env-settings-body">
+                <!-- Database Configuration -->
+                <div class="settings-group">
+                    <label for="env-db-provider">Database Provider</label>
+                    <select id="env-db-provider" class="form-control">
+                        <option value="local">Local Sandbox (Offline Storage)</option>
+                        <option value="supabase">Supabase BaaS</option>
+                        <option value="firebase">Firebase Firestore REST</option>
+                        <option value="pocketbase">PocketBase Server REST</option>
+                    </select>
+                </div>
+
+                <!-- Dynamic DB Fields -->
+                <div id="fields-db-supabase" class="db-fields-panel hide">
+                    <div class="settings-group">
+                        <label for="env-supabase-url">Supabase Project URL</label>
+                        <input type="text" id="env-supabase-url" class="form-control" placeholder="https://your-project.supabase.co">
+                    </div>
+                    <div class="settings-group">
+                        <label for="env-supabase-key">Supabase Anon Key</label>
+                        <input type="password" id="env-supabase-key" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6...">
+                    </div>
+                </div>
+
+                <div id="fields-db-firebase" class="db-fields-panel hide">
+                    <div class="settings-group">
+                        <label for="env-firebase-project">Firebase Project ID</label>
+                        <input type="text" id="env-firebase-project" class="form-control" placeholder="vantage-workspace-123">
+                    </div>
+                    <div class="settings-group">
+                        <label for="env-firebase-key">Web API Key (Optional)</label>
+                        <input type="password" id="env-firebase-key" class="form-control" placeholder="AIzaSy...">
+                    </div>
+                </div>
+
+                <div id="fields-db-pocketbase" class="db-fields-panel hide">
+                    <div class="settings-group">
+                        <label for="env-pocketbase-url">PocketBase URL</label>
+                        <input type="text" id="env-pocketbase-url" class="form-control" placeholder="http://127.0.0.1:8090">
+                    </div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 0.5rem 0;">
+
+                <!-- AI Configuration -->
+                <div class="settings-group">
+                    <label for="env-ai-provider">AI Provider</label>
+                    <select id="env-ai-provider" class="form-control">
+                        <option value="gemini">Google Gemini</option>
+                        <option value="openai">OpenAI ChatGPT</option>
+                        <option value="anthropic">Anthropic Claude</option>
+                    </select>
+                </div>
+
+                <!-- Dynamic AI Fields -->
+                <div id="fields-ai-gemini" class="ai-fields-panel">
+                    <div class="settings-group">
+                        <label for="env-gemini-key">Gemini API Key</label>
+                        <input type="password" id="env-gemini-key" class="form-control" placeholder="AIzaSy...">
+                    </div>
+                </div>
+
+                <div id="fields-ai-openai" class="ai-fields-panel hide">
+                    <div class="settings-group">
+                        <label for="env-openai-key">OpenAI API Key</label>
+                        <input type="password" id="env-openai-key" class="form-control" placeholder="sk-proj-...">
+                    </div>
+                    <div class="settings-group">
+                        <label for="env-openai-model">OpenAI Model</label>
+                        <select id="env-openai-model" class="form-control">
+                            <option value="gpt-4o-mini">gpt-4o-mini (Faster, Recommended)</option>
+                            <option value="gpt-4o">gpt-4o (Powerful)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="fields-ai-anthropic" class="ai-fields-panel hide">
+                    <div class="settings-group">
+                        <label for="env-anthropic-key">Anthropic API Key</label>
+                        <input type="password" id="env-anthropic-key" class="form-control" placeholder="sk-ant-...">
+                    </div>
+                    <div class="settings-group">
+                        <label for="env-anthropic-model">Claude Model</label>
+                        <select id="env-anthropic-model" class="form-control">
+                            <option value="claude-3-5-sonnet-20240620">claude-3-5-sonnet (Recommended)</option>
+                            <option value="claude-3-haiku-20240307">claude-3-haiku (Faster)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button id="env-settings-save-btn" class="btn btn-primary btn-block" style="margin-top: 0.5rem; margin-bottom: 0.5rem;">Save Environment Settings</button>
+            </div>
+        </div>
+
+        <!-- Left Panel: Branding Visual -->
+        <div class="auth-visual-side">
+            <div class="brand-logo-row">
+                <div class="brand-logo">
+                    <i data-lucide="compass" class="logo-icon"></i>
+                </div>
+                <h2>Vantage</h2>
+            </div>
+            <div class="visual-content">
+                <h3>Vantage Progression Hub</h3>
+                <p>Aligning fast-executing teams on clear context, shared goals, and permanent decision archives.</p>
+                <ul class="visual-features">
+                    <li><i data-lucide="check-circle-2"></i> Real-time Supabase Database Sync</li>
+                    <li><i data-lucide="check-circle-2"></i> Automated WhatsApp Log Parser</li>
+                    <li><i data-lucide="check-circle-2"></i> Dynamic AI Task Co-Pilot</li>
+                </ul>
+            </div>
+            <div class="visual-footer">
+                <span>&larr; <a href="index.html">Back to product homepage</a></span>
+            </div>
+        </div>
+
+        <!-- Right Panel: Auth Forms -->
+        <div class="auth-form-side">
+            <!-- SIGN IN FORM -->
+            <div id="signin-card" class="auth-card active">
+                <div class="card-header-text">
+                    <h3>Welcome Back</h3>
+                    <p>Enter details to log in to your team workspace</p>
+                </div>
+
+                <form id="signin-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="signin-email">Email Address</label>
+                        <input type="email" id="signin-email" class="form-control" placeholder="name@company.com" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="signin-password">Password</label>
+                        <input type="password" id="signin-password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Sign In to Vantage</button>
+                </form>
+
+                <div class="oauth-divider" style="text-align: center; margin: 0.5rem 0; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
+                    <span>or continue with</span>
+                </div>
+                
+                <div class="oauth-buttons" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <button type="button" class="btn btn-oauth Google-btn" onclick="handleOAuthLogin('google')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #fff; border-radius: 6px; font-size: 0.75rem; cursor: pointer;">
+                        <i data-lucide="chrome" style="width: 14px; height: 14px; color: #ea4335;"></i>
+                        <span>Google</span>
+                    </button>
+                    <button type="button" class="btn btn-oauth MS-btn" onclick="handleOAuthLogin('azure')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #fff; border-radius: 6px; font-size: 0.75rem; cursor: pointer;">
+                        <i data-lucide="box" style="width: 14px; height: 14px; color: #00a4ef;"></i>
+                        <span>Microsoft</span>
+                    </button>
+                </div>
+
+                <div class="card-footer-switch">
+                    <span>Don't have an account? <button id="switch-to-signup-btn">Create one</button></span>
+                </div>
+            </div>
+
+            <!-- SIGN UP FORM -->
+            <div id="signup-card" class="auth-card">
+                <div class="card-header-text">
+                    <h3>Create Team Account</h3>
+                    <p>Register to setup your workspace and coordinate tasks</p>
+                </div>
+
+                <form id="signup-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="signup-name">Full Name</label>
+                        <input type="text" id="signup-name" class="form-control" placeholder="Pavan Kumar" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-email">Email Address</label>
+                        <input type="email" id="signup-email" class="form-control" placeholder="name@company.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-password">Password</label>
+                        <input type="password" id="signup-password" class="form-control" placeholder="Choose a secure password" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-dept">Primary Department</label>
+                        <select id="signup-dept" class="form-control" required>
+                            <!-- Populated dynamically based on preset -->
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.5rem;">
+                        <label for="signup-role">Workspace Permission Role</label>
+                        <select id="signup-role" class="form-control" required>
+                            <option value="owner">Workspace Owner (Full Admin Access)</option>
+                            <option value="manager">Manager (Create and Assign)</option>
+                            <option value="contributor">Contributor (Checklists & Files)</option>
+                            <option value="reader">Reader (Read-Only Workspace Audit)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Register Account</button>
+                </form>
+
+                <div class="card-footer-switch">
+                    <span>Already have a workspace account? <button id="switch-to-signin-btn">Sign In</button></span>
+                </div>
+            </div>
+            
+            <!-- Reset credentials action -->
+            <div class="auth-mobile-footer" style="margin-top: 1.5rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">
+                <button id="clear-db-btn" style="background: none; border: none; color: #a29bfe; cursor: pointer; text-decoration: underline; font-family: inherit;">Clear Local Workspace Cache</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth scripting module -->
+    <script>
+        // Load configurations from local cache or global defaults
+        const CONFIG = {
+            dbProvider: localStorage.getItem("vantage_db_provider") || "local",
+            sbUrl: localStorage.getItem("vantage_supabase_url") || (window.VANTAGE_CONFIG ? window.VANTAGE_CONFIG.SUPABASE_URL : ""),
+            sbKey: localStorage.getItem("vantage_supabase_anon_key") || (window.VANTAGE_CONFIG ? window.VANTAGE_CONFIG.SUPABASE_ANON_KEY : ""),
+            fbProjectId: localStorage.getItem("vantage_firebase_project_id") || "",
+            fbApiKey: localStorage.getItem("vantage_firebase_api_key") || "",
+            pbUrl: localStorage.getItem("vantage_pocketbase_url") || "",
+            aiProvider: localStorage.getItem("vantage_ai_provider") || "gemini",
+            geminiKey: localStorage.getItem("vantage_api_key") || (window.VANTAGE_CONFIG ? window.VANTAGE_CONFIG.GEMINI_API_KEY : ""),
+            openaiKey: localStorage.getItem("vantage_openai_key") || "",
+            openaiModel: localStorage.getItem("vantage_openai_model") || "gpt-4o-mini",
+            anthropicKey: localStorage.getItem("vantage_anthropic_key") || "",
+            anthropicModel: localStorage.getItem("vantage_anthropic_model") || "claude-3-5-sonnet-20240620"
+        };
+
+        function initSupabase(url, key) {
+            if (!url || !key) return null;
+            try {
+                if (typeof supabase !== 'undefined' && supabase.createClient) {
+                    return supabase.createClient(url, key);
+                }
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Initialize Supabase if active provider is Supabase
+        const supabaseClient = CONFIG.dbProvider === "supabase" ? initSupabase(CONFIG.sbUrl, CONFIG.sbKey) : null;
+
+        lucide.createIcons();
+
+        // Preset definitions for dynamic department loading
+        const PRESETS = {
+            fmcg: {
+                ops: "Operations & Supply Chain",
+                marketing: "Marketing & Brand",
+                sales: "Sales & Distribution",
+                rd: "R&D & Formulation",
+                finance: "Finance & Compliance"
+            },
+            general: {
+                ops: "Operations",
+                marketing: "Marketing",
+                sales: "Sales",
+                hr: "HR & Talent",
+                finance: "Finance"
+            },
+            tech: {
+                ops: "Design & UX",
+                marketing: "Growth & SEO",
+                sales: "Sales & Demos",
+                rd: "Engineering / Dev",
+                finance: "Product Strategy"
+            }
+        };
+
+        function populateSignupDepartments() {
+            const signupDeptSelect = document.getElementById("signup-dept");
+            if (!signupDeptSelect) return;
+            signupDeptSelect.innerHTML = "";
+            
+            const industry = localStorage.getItem("vantage_industry") || "general";
+            let depts = {};
+            if (industry === "custom") {
+                try {
+                    const customData = JSON.parse(localStorage.getItem("vantage_custom_departments"));
+                    if (customData && customData.departments) {
+                        depts = {};
+                        Object.keys(customData.departments).forEach(k => {
+                            depts[k] = customData.departments[k].name;
+                        });
+                    }
+                } catch (e) {
+                    console.error("Failed to parse custom departments:", e);
+                }
+            }
+            
+            if (Object.keys(depts).length === 0) {
+                const configDepts = PRESETS[industry] || PRESETS.general;
+                depts = configDepts;
+            }
+            
+            Object.keys(depts).forEach(key => {
+                const opt = document.createElement("option");
+                opt.value = key;
+                opt.textContent = depts[key];
+                signupDeptSelect.appendChild(opt);
+            });
+        }
+
+        populateSignupDepartments();
+
+        // ----------------------------------------------------
+        // Environment settings panel handlers
+        // ----------------------------------------------------
+        const envBtn = document.getElementById("env-settings-btn");
+        const envClose = document.getElementById("env-settings-close");
+        const envOverlay = document.getElementById("env-settings-overlay");
+        const dbSelector = document.getElementById("env-db-provider");
+        const aiSelector = document.getElementById("env-ai-provider");
+        const saveEnvBtn = document.getElementById("env-settings-save-btn");
+
+        // Toggle panel
+        if (envBtn && envOverlay && envClose) {
+            envBtn.addEventListener("click", () => envOverlay.classList.remove("hide"));
+            envClose.addEventListener("click", () => envOverlay.classList.add("hide"));
+        }
+
+        // Populate fields on load
+        if (dbSelector) dbSelector.value = CONFIG.dbProvider;
+        if (aiSelector) aiSelector.value = CONFIG.aiProvider;
+
+        document.getElementById("env-supabase-url").value = CONFIG.sbUrl;
+        document.getElementById("env-supabase-key").value = CONFIG.sbKey;
+        document.getElementById("env-firebase-project").value = CONFIG.fbProjectId;
+        document.getElementById("env-firebase-key").value = CONFIG.fbApiKey;
+        document.getElementById("env-pocketbase-url").value = CONFIG.pbUrl;
+        document.getElementById("env-gemini-key").value = CONFIG.geminiKey;
+        document.getElementById("env-openai-key").value = CONFIG.openaiKey;
+        document.getElementById("env-openai-model").value = CONFIG.openaiModel;
+        document.getElementById("env-anthropic-key").value = CONFIG.anthropicKey;
+        document.getElementById("env-anthropic-model").value = CONFIG.anthropicModel;
+
+        // Toggle dynamic input blocks
+        function toggleInputPanels() {
+            const dbVal = dbSelector ? dbSelector.value : "local";
+            const aiVal = aiSelector ? aiSelector.value : "gemini";
+
+            // DB Panels
+            document.getElementById("fields-db-supabase").classList.toggle("hide", dbVal !== "supabase");
+            document.getElementById("fields-db-firebase").classList.toggle("hide", dbVal !== "firebase");
+            document.getElementById("fields-db-pocketbase").classList.toggle("hide", dbVal !== "pocketbase");
+
+            // AI Panels
+            document.getElementById("fields-ai-gemini").classList.toggle("hide", aiVal !== "gemini");
+            document.getElementById("fields-ai-openai").classList.toggle("hide", aiVal !== "openai");
+            document.getElementById("fields-ai-anthropic").classList.toggle("hide", aiVal !== "anthropic");
+        }
+
+        if (dbSelector) dbSelector.addEventListener("change", toggleInputPanels);
+        if (aiSelector) aiSelector.addEventListener("change", toggleInputPanels);
+        toggleInputPanels(); // trigger initial state check
+
+        // Save panel configuration
+        if (saveEnvBtn) {
+            saveEnvBtn.addEventListener("click", () => {
+                const dbVal = dbSelector.value;
+                const aiVal = aiSelector.value;
+
+                localStorage.setItem("vantage_db_provider", dbVal);
+                localStorage.setItem("vantage_ai_provider", aiVal);
+
+                localStorage.setItem("vantage_supabase_url", document.getElementById("env-supabase-url").value.trim());
+                localStorage.setItem("vantage_supabase_anon_key", document.getElementById("env-supabase-key").value.trim());
+                localStorage.setItem("vantage_firebase_project_id", document.getElementById("env-firebase-project").value.trim());
+                localStorage.setItem("vantage_firebase_api_key", document.getElementById("env-firebase-key").value.trim());
+                localStorage.setItem("vantage_pocketbase_url", document.getElementById("env-pocketbase-url").value.trim());
+
+                localStorage.setItem("vantage_api_key", document.getElementById("env-gemini-key").value.trim());
+                localStorage.setItem("vantage_openai_key", document.getElementById("env-openai-key").value.trim());
+                localStorage.setItem("vantage_openai_model", document.getElementById("env-openai-model").value);
+                localStorage.setItem("vantage_anthropic_key", document.getElementById("env-anthropic-key").value.trim());
+                localStorage.setItem("vantage_anthropic_model", document.getElementById("env-anthropic-model").value);
+
+                alert("Environment Settings saved successfully! Page reloading to update active client instances...");
+                window.location.reload();
+            });
+        }
+
+        // ----------------------------------------------------
+        // UI Panel switches
+        // ----------------------------------------------------
+        const switchToSignup = document.getElementById("switch-to-signup-btn");
+        const switchToSignin = document.getElementById("switch-to-signin-btn");
+        const signinCard = document.getElementById("signin-card");
+        const signupCard = document.getElementById("signup-card");
+
+        if (switchToSignup && signinCard && signupCard) {
+            switchToSignup.addEventListener("click", () => {
+                signinCard.classList.remove("active");
+                signupCard.classList.add("active");
+            });
+        }
+        if (switchToSignin && signinCard && signupCard) {
+            switchToSignin.addEventListener("click", () => {
+                signupCard.classList.remove("active");
+                signinCard.classList.add("active");
+            });
+        }
+
+        // ----------------------------------------------------
+        // Dynamic Auth Routing Handlers
+        // ----------------------------------------------------
+        const signinForm = document.getElementById("signin-form");
+        const signupForm = document.getElementById("signup-form");
+
+        signinForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const email = document.getElementById("signin-email").value.trim();
+            const password = document.getElementById("signin-password").value;
+
+            if (CONFIG.dbProvider === "supabase" && supabaseClient) {
+                // Supabase Authentication
+                try {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) {
+                        alert("Supabase Auth Error: " + error.message);
+                    } else {
+                        localStorage.setItem("vantage_user_email", email);
+                        localStorage.setItem("vantage_user_name", email.split('@')[0]);
+                        const userRole = data.user && data.user.user_metadata ? data.user.user_metadata.role : "owner";
+                        const userDept = data.user && data.user.user_metadata ? data.user.user_metadata.department : "ops";
+                        localStorage.setItem("vantage_user_role", userRole);
+                        localStorage.setItem("vantage_user_dept", userDept);
+                        window.location.href = "app.html";
+                    }
+                } catch (err) {
+                    alert("Supabase connection failed: " + err.message);
+                }
+            } else if (CONFIG.dbProvider === "pocketbase" && CONFIG.pbUrl) {
+                // PocketBase Authentication
+                try {
+                    const response = await fetch(`${CONFIG.pbUrl}/api/collections/users/auth-with-password`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ identity: email, password: password })
+                    });
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        alert("PocketBase Auth Error: " + (errData.message || "Invalid credentials"));
+                    } else {
+                        const data = await response.json();
+                        localStorage.setItem("vantage_user_email", email);
+                        localStorage.setItem("vantage_user_name", data.record.name || email.split('@')[0]);
+                        localStorage.setItem("vantage_user_dept", data.record.department || "ops");
+                        localStorage.setItem("vantage_user_role", data.record.role || "owner");
+                        localStorage.setItem("vantage_pb_token", data.token);
+                        window.location.href = "app.html";
+                    }
+                } catch (err) {
+                    alert("PocketBase connection failed: " + err.message);
+                }
+            } else if (CONFIG.dbProvider === "firebase" && CONFIG.fbProjectId && CONFIG.fbApiKey) {
+                // Firebase REST Authentication
+                try {
+                    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${CONFIG.fbApiKey}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email, password, returnSecureToken: true })
+                    });
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        alert("Firebase Auth Error: " + (errData.error.message || "Invalid credentials"));
+                    } else {
+                        const data = await response.json();
+                        localStorage.setItem("vantage_user_email", email);
+                        localStorage.setItem("vantage_user_name", email.split('@')[0]);
+                        
+                        // Pull user metadata from Firestore document via REST
+                        try {
+                            const fsResp = await fetch(`https://firestore.googleapis.com/v1/projects/${CONFIG.fbProjectId}/databases/(default)/documents/users/${encodeURIComponent(email)}`);
+                            if (fsResp.ok) {
+                                const fsDoc = await fsResp.json();
+                                const fields = fsDoc.fields;
+                                if (fields) {
+                                    localStorage.setItem("vantage_user_name", fields.name ? fields.name.stringValue : email.split('@')[0]);
+                                    localStorage.setItem("vantage_user_dept", fields.dept ? fields.dept.stringValue : "ops");
+                                    localStorage.setItem("vantage_user_role", fields.role ? fields.role.stringValue : "owner");
+                                }
+                            }
+                        } catch (e) {
+                            // Fallback to default
+                            localStorage.setItem("vantage_user_dept", "ops");
+                            localStorage.setItem("vantage_user_role", "owner");
+                        }
+                        
+                        window.location.href = "app.html";
+                    }
+                } catch (err) {
+                    alert("Firebase connection failed: " + err.message);
+                }
+            } else {
+                // Local Mode Fallback
+                localStorage.setItem("vantage_user_email", email);
+                localStorage.setItem("vantage_user_name", email.split('@')[0]);
+                localStorage.setItem("vantage_user_dept", "ops");
+                localStorage.setItem("vantage_user_role", "owner");
+                window.location.href = "app.html";
+            }
+        });
+
+        signupForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const name = document.getElementById("signup-name").value.trim();
+            const email = document.getElementById("signup-email").value.trim();
+            const password = document.getElementById("signup-password").value;
+            const dept = document.getElementById("signup-dept").value;
+            const role = document.getElementById("signup-role").value;
+
+            if (CONFIG.dbProvider === "supabase" && supabaseClient) {
+                // Supabase Registration
+                try {
+                    const { data, error } = await supabaseClient.auth.signUp({
+                        email,
+                        password,
+                        options: {
+                            data: { full_name: name, department: dept, role: role }
+                        }
+                    });
+                    if (error) {
+                        alert("Supabase Sign Up Error: " + error.message);
+                    } else {
+                        alert("Supabase registration successful! Verification email sent.");
+                        localStorage.setItem("vantage_user_email", email);
+                        localStorage.setItem("vantage_user_name", name);
+                        localStorage.setItem("vantage_user_dept", dept);
+                        localStorage.setItem("vantage_user_role", role);
+                        window.location.href = "app.html";
+                    }
+                } catch (err) {
+                    alert("Supabase connection failed: " + err.message);
+                }
+            } else if (CONFIG.dbProvider === "pocketbase" && CONFIG.pbUrl) {
+                // PocketBase Registration
+                try {
+                    const response = await fetch(`${CONFIG.pbUrl}/api/collections/users/records`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            email: email,
+                            emailVisibility: true,
+                            password: password,
+                            passwordConfirm: password,
+                            name: name,
+                            department: dept,
+                            role: role
+                        })
+                    });
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        alert("PocketBase Registration Error: " + JSON.stringify(errData.data));
+                    } else {
+                        // Immediately sign in
+                        const loginResp = await fetch(`${CONFIG.pbUrl}/api/collections/users/auth-with-password`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ identity: email, password: password })
+                        });
+                        if (loginResp.ok) {
+                            const data = await loginResp.json();
+                            localStorage.setItem("vantage_user_email", email);
+                            localStorage.setItem("vantage_user_name", name);
+                            localStorage.setItem("vantage_user_dept", dept);
+                            localStorage.setItem("vantage_user_role", role);
+                            localStorage.setItem("vantage_pb_token", data.token);
+                            window.location.href = "app.html";
+                        }
+                    }
+                } catch (err) {
+                    alert("PocketBase connection failed: " + err.message);
+                }
+            } else if (CONFIG.dbProvider === "firebase" && CONFIG.fbProjectId && CONFIG.fbApiKey) {
+                // Firebase Registration
+                try {
+                    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${CONFIG.fbApiKey}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email, password, returnSecureToken: true })
+                    });
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        alert("Firebase Registration Error: " + errData.error.message);
+                    } else {
+                        // Save metadata to Firestore document
+                        const fsBody = {
+                            fields: {
+                                name: { stringValue: name },
+                                dept: { stringValue: dept },
+                                role: { stringValue: role }
+                            }
+                        };
+                        await fetch(`https://firestore.googleapis.com/v1/projects/${CONFIG.fbProjectId}/databases/(default)/documents/users/${encodeURIComponent(email)}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(fsBody)
+                        });
+                        
+                        localStorage.setItem("vantage_user_email", email);
+                        localStorage.setItem("vantage_user_name", name);
+                        localStorage.setItem("vantage_user_dept", dept);
+                        localStorage.setItem("vantage_user_role", role);
+                        window.location.href = "app.html";
+                    }
+                } catch (err) {
+                    alert("Firebase connection failed: " + err.message);
+                }
+            } else {
+                // Local sandbox setup
+                localStorage.setItem("vantage_user_email", email);
+                localStorage.setItem("vantage_user_name", name);
+                localStorage.setItem("vantage_user_dept", dept);
+                localStorage.setItem("vantage_user_role", role);
+                window.location.href = "app.html";
+            }
+        });
+
+        window.handleOAuthLogin = async function(provider) {
+            if (CONFIG.dbProvider === "supabase" && supabaseClient) {
+                try {
+                    const { error } = await supabaseClient.auth.signInWithOAuth({ provider });
+                    if (error) alert("OAuth Error: " + error.message);
+                } catch (err) {
+                    alert("OAuth Connection failed: " + err.message);
+                }
+            } else {
+                const email = provider === 'google' ? "google-user@company.com" : "entra-user@company.com";
+                localStorage.setItem("vantage_user_email", email);
+                localStorage.setItem("vantage_user_name", email.split('@')[0]);
+                localStorage.setItem("vantage_user_dept", "rd");
+                localStorage.setItem("vantage_user_role", "owner");
+                alert(`Simulated local OAuth login with ${provider.toUpperCase()}`);
+                window.location.href = "app.html";
+            }
+        };
+
+        // Clear settings hook
+        const clearDbBtn = document.getElementById("clear-db-btn");
+        if (clearDbBtn) {
+            clearDbBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                if (confirm("Reset local cache? This will clear local workspace data and reset your session settings.")) {
+                    localStorage.removeItem("vantage_workspace_data");
+                    localStorage.removeItem("vantage_user_email");
+                    localStorage.removeItem("vantage_user_name");
+                    localStorage.removeItem("vantage_user_dept");
+                    localStorage.removeItem("vantage_user_role");
+                    localStorage.removeItem("vantage_db_provider");
+                    localStorage.removeItem("vantage_ai_provider");
+                    localStorage.removeItem("vantage_custom_departments");
+                    alert("Local workspace cache cleared. Reloading page...");
+                    window.location.reload();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
