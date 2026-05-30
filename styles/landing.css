@@ -23,6 +23,16 @@
     padding: 0;
 }
 
+/* Global Link Visited and Color Reset */
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+a:visited {
+    color: inherit;
+}
+
 html {
     scroll-behavior: smooth;
 }
@@ -100,6 +110,12 @@ body.landing-body {
     font-weight: 700;
 }
 
+.landing-header.glass {
+    background: rgba(18, 18, 26, 0.75);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(108, 92, 231, 0.08);
+}
+
 .header-nav {
     display: flex;
     align-items: center;
@@ -111,11 +127,16 @@ body.landing-body {
     text-decoration: none;
     font-size: 0.9rem;
     font-weight: 500;
-    transition: color 0.2s;
+    transition: all 0.25s ease-in-out;
+}
+
+.header-nav a:not(.btn):visited {
+    color: var(--text-secondary);
 }
 
 .header-nav a:not(.btn):hover {
     color: #fff;
+    text-shadow: 0 0 8px rgba(162, 155, 254, 0.5); /* Glow effect on hover */
 }
 
 /* Buttons */
@@ -135,8 +156,12 @@ body.landing-body {
 
 .btn-primary {
     background: var(--primary);
-    color: #fff;
+    color: #fff !important;
     box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.btn-primary:visited, .btn-primary:active {
+    color: #fff !important;
 }
 
 .btn-primary:hover {
@@ -147,12 +172,18 @@ body.landing-body {
 
 .btn-secondary {
     background: rgba(255, 255, 255, 0.04);
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
     border: 1px solid var(--border-light);
 }
 
+.btn-secondary:visited, .btn-secondary:active {
+    color: var(--text-primary) !important;
+}
+
 .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(108, 92, 231, 0.4);
+    box-shadow: 0 0 15px rgba(108, 92, 231, 0.25);
 }
 
 .btn-sm {
@@ -1089,6 +1120,12 @@ body.landing-body {
     padding: 0 3rem;
     position: relative;
     z-index: 10;
+    animation: statsFadeIn 0.8s ease-out;
+}
+
+@keyframes statsFadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .stats-ribbon {
@@ -1154,13 +1191,14 @@ body.landing-body {
 
 .stat-value {
     font-family: 'Outfit', sans-serif;
-    font-size: 1.85rem;
+    font-size: 2.25rem; /* Larger font size for premium dashboard look */
     font-weight: 800;
     color: #fff;
     line-height: 1;
     background: linear-gradient(135deg, #fff 0%, #a29bfe 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 15px rgba(162, 155, 254, 0.3); /* Premium glow effect */
 }
 
 .stat-label {
