@@ -18,8 +18,8 @@
 </head>
 <body class="auth-body">
     <div class="auth-container glass" style="position: relative;">
-        <!-- Floating Environment Settings Gear -->
-        <button id="env-settings-btn" class="env-settings-trigger" title="Configure Database & AI Environment">
+        <!-- Floating Environment Settings Gear (Hidden to avoid information overload) -->
+        <button id="env-settings-btn" class="env-settings-trigger" title="Configure Database & AI Environment" style="display: none;">
             <i data-lucide="settings"></i>
         </button>
 
@@ -195,6 +195,9 @@
                 <div class="card-footer-switch">
                     <span>Don't have an account? <button id="switch-to-signup-btn">Create one</button></span>
                 </div>
+                <div style="text-align: center; margin-top: 0.8rem;">
+                    <button id="toggle-advanced-btn" style="background: none; border: none; color: var(--text-muted); font-size: 0.72rem; cursor: pointer; text-decoration: underline; font-family: inherit;">Advanced: Bring Your Own Database / Key</button>
+                </div>
             </div>
 
             <!-- SIGN UP FORM -->
@@ -205,6 +208,14 @@
                 </div>
 
                 <form id="signup-form" class="auth-form">
+                    <!-- Honeypot anti-bot security field (Hidden from humans, filled by bots) -->
+                    <div style="display: none;" aria-hidden="true">
+                        <input type="text" id="signup-honeypot" tabindex="-1" autocomplete="off">
+                    </div>
+                    <!-- hCaptcha captcha integration scaffolding:
+                    <div class="h-captcha" data-sitekey="YOUR_HCAPTCHA_SITEKEY" style="margin: 0.5rem 0;"></div>
+                    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+                    -->
                     <div class="form-group">
                         <label for="signup-name">Full Name</label>
                         <input type="text" id="signup-name" class="form-control" placeholder="Pavan Kumar" required>
@@ -238,6 +249,9 @@
                 <div class="card-footer-switch">
                     <span>Already have a workspace account? <button id="switch-to-signin-btn">Sign In</button></span>
                 </div>
+                <div style="text-align: center; margin-top: 0.8rem;">
+                    <button id="toggle-advanced-signup-btn" style="background: none; border: none; color: var(--text-muted); font-size: 0.72rem; cursor: pointer; text-decoration: underline; font-family: inherit;">Advanced: Bring Your Own Database / Key</button>
+                </div>
             </div>
             
             <!-- Reset credentials action -->
@@ -251,7 +265,7 @@
     <script>
         // Load configurations from local cache or global defaults
         const CONFIG = {
-            dbProvider: localStorage.getItem("vantage_db_provider") || "local",
+            dbProvider: localStorage.getItem("vantage_db_provider") || "supabase",
             sbUrl: localStorage.getItem("vantage_supabase_url") || (window.VANTAGE_CONFIG ? window.VANTAGE_CONFIG.SUPABASE_URL : ""),
             sbKey: localStorage.getItem("vantage_supabase_anon_key") || (window.VANTAGE_CONFIG ? window.VANTAGE_CONFIG.SUPABASE_ANON_KEY : ""),
             fbProjectId: localStorage.getItem("vantage_firebase_project_id") || "",
@@ -558,6 +572,16 @@
         const aiSelector = document.getElementById("env-ai-provider");
         const saveEnvBtn = document.getElementById("env-settings-save-btn");
 
+        // Advanced Toggles wiring
+        const advBtn = document.getElementById("toggle-advanced-btn");
+        const advSignupBtn = document.getElementById("toggle-advanced-signup-btn");
+        const toggleHandler = (e) => {
+            e.preventDefault();
+            envOverlay.classList.remove("hide");
+        };
+        if (advBtn) advBtn.addEventListener("click", toggleHandler);
+        if (advSignupBtn) advSignupBtn.addEventListener("click", toggleHandler);
+
         // Toggle panel
         if (envBtn && envOverlay && envClose) {
             envBtn.addEventListener("click", () => envOverlay.classList.remove("hide"));
@@ -568,12 +592,39 @@
         if (dbSelector) dbSelector.value = CONFIG.dbProvider;
         if (aiSelector) aiSelector.value = CONFIG.aiProvider;
 
-        document.getElementById("env-supabase-url").value = CONFIG.sbUrl;
-        document.getElementById("env-supabase-key").value = CONFIG.sbKey;
+        // Dynamic Input Masking logic for DB URL & Key
+        const customSbUrl = localStorage.getItem("vantage_supabase_url");
+        const customSbKey = localStorage.getItem("vantage_supabase_anon_key");
+        const urlInput = document.getElementById("env-supabase-url");
+        const keyInput = document.getElementById("env-supabase-key");
+
+        if (!customSbUrl) {
+            urlInput.value = "";
+            urlInput.placeholder = "[Vantage Shared Cloud (Hidden)]";
+        } else {
+            urlInput.value = customSbUrl;
+        }
+
+        if (!customSbKey) {
+            keyInput.value = "";
+            keyInput.placeholder = "[Vantage Shared Cloud (Hidden)]";
+        } else {
+            keyInput.value = customSbKey;
+        }
+
+        // Dynamic Input Masking for Gemini Key
+        const customGeminiKey = localStorage.getItem("vantage_api_key");
+        const geminiInput = document.getElementById("env-gemini-key");
+        if (!customGeminiKey) {
+            geminiInput.value = "";
+            geminiInput.placeholder = "[Simulation Mode (Offline Mock)]";
+        } else {
+            geminiInput.value = customGeminiKey;
+        }
+
         document.getElementById("env-firebase-project").value = CONFIG.fbProjectId;
         document.getElementById("env-firebase-key").value = CONFIG.fbApiKey;
         document.getElementById("env-pocketbase-url").value = CONFIG.pbUrl;
-        document.getElementById("env-gemini-key").value = CONFIG.geminiKey;
         document.getElementById("env-openai-key").value = CONFIG.openaiKey;
         document.getElementById("env-openai-model").value = CONFIG.openaiModel;
         document.getElementById("env-anthropic-key").value = CONFIG.anthropicKey;
@@ -608,13 +659,34 @@
                 localStorage.setItem("vantage_db_provider", dbVal);
                 localStorage.setItem("vantage_ai_provider", aiVal);
 
-                localStorage.setItem("vantage_supabase_url", document.getElementById("env-supabase-url").value.trim());
-                localStorage.setItem("vantage_supabase_anon_key", document.getElementById("env-supabase-key").value.trim());
+                // DB parameters handling (allow reverting to defaults if inputs cleared)
+                const inputSbUrl = urlInput.value.trim();
+                const inputSbKey = keyInput.value.trim();
+
+                if (inputSbUrl && inputSbUrl !== "[Vantage Shared Cloud (Hidden)]") {
+                    localStorage.setItem("vantage_supabase_url", inputSbUrl);
+                } else if (!inputSbUrl) {
+                    localStorage.removeItem("vantage_supabase_url");
+                }
+
+                if (inputSbKey && inputSbKey !== "[Vantage Shared Cloud (Hidden)]") {
+                    localStorage.setItem("vantage_supabase_anon_key", inputSbKey);
+                } else if (!inputSbKey) {
+                    localStorage.removeItem("vantage_supabase_anon_key");
+                }
+
                 localStorage.setItem("vantage_firebase_project_id", document.getElementById("env-firebase-project").value.trim());
                 localStorage.setItem("vantage_firebase_api_key", document.getElementById("env-firebase-key").value.trim());
                 localStorage.setItem("vantage_pocketbase_url", document.getElementById("env-pocketbase-url").value.trim());
 
-                localStorage.setItem("vantage_api_key", document.getElementById("env-gemini-key").value.trim());
+                // AI Key handling
+                const inputGemini = geminiInput.value.trim();
+                if (inputGemini) {
+                    localStorage.setItem("vantage_api_key", inputGemini);
+                } else if (!inputGemini) {
+                    localStorage.removeItem("vantage_api_key");
+                }
+
                 localStorage.setItem("vantage_openai_key", document.getElementById("env-openai-key").value.trim());
                 localStorage.setItem("vantage_openai_model", document.getElementById("env-openai-model").value);
                 localStorage.setItem("vantage_anthropic_key", document.getElementById("env-anthropic-key").value.trim());
@@ -734,6 +806,15 @@
 
         signupForm.addEventListener("submit", async (e) => {
             e.preventDefault();
+
+            // Honeypot anti-bot security check
+            const honeypot = document.getElementById("signup-honeypot").value;
+            if (honeypot) {
+                console.warn("Spambot signup blocked via honeypot.");
+                alert("Account registration successful! Please check your email inbox to confirm your account.");
+                return;
+            }
+
             const name = document.getElementById("signup-name").value.trim();
             const email = document.getElementById("signup-email").value.trim();
             const password = document.getElementById("signup-password").value;
@@ -834,7 +915,12 @@
         window.handleOAuthLogin = async function(provider) {
             if (CONFIG.dbProvider === "supabase" && supabaseClient) {
                 try {
-                    const { error } = await supabaseClient.auth.signInWithOAuth({ provider });
+                    const { error } = await supabaseClient.auth.signInWithOAuth({ 
+                        provider,
+                        options: {
+                            redirectTo: window.location.origin + window.location.pathname.replace("auth.html", "app.html")
+                        }
+                    });
                     if (error) alert("OAuth Error: " + error.message);
                 } catch (err) {
                     alert("OAuth Connection failed: " + err.message);

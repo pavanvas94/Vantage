@@ -809,7 +809,33 @@ const APP = new VantageState();
 // UI Rendering Controllers
 // ----------------------------------------------------
 
-function initApp() {
+async function initApp() {
+    // Session Guard check if using Supabase Database
+    if (APP.dbProvider === "supabase" && APP.supabase) {
+        try {
+            const { data: { session } } = await APP.supabase.auth.getSession();
+            if (session) {
+                // User is authenticated! Sync their info to local storage
+                const email = session.user.email;
+                const name = session.user.user_metadata.full_name || email.split('@')[0];
+                const role = session.user.user_metadata.role || "owner";
+                const dept = session.user.user_metadata.department || "ops";
+                
+                localStorage.setItem("vantage_user_email", email);
+                localStorage.setItem("vantage_user_name", name);
+                localStorage.setItem("vantage_user_role", role);
+                localStorage.setItem("vantage_user_dept", dept);
+            } else {
+                // No active session! Redirect to login page
+                console.warn("No active Supabase session found. Redirecting to auth.html");
+                window.location.href = "auth.html";
+                return;
+            }
+        } catch (err) {
+            console.error("Supabase session guard error:", err);
+        }
+    }
+
     setupUserSessionDisplay();
     setupViewNavigation();
     setupFilters();
@@ -5556,6 +5582,24 @@ function renderProposalReviewBoard(card) {
     }
 }
 
+async function handleSignOut() {
+    if (APP.dbProvider === "supabase" && APP.supabase) {
+        try {
+            await APP.supabase.auth.signOut();
+        } catch (e) {
+            console.error("Error signing out from Supabase:", e);
+        }
+    }
+    // Clear session cache keys
+    localStorage.removeItem("vantage_user_email");
+    localStorage.removeItem("vantage_user_name");
+    localStorage.removeItem("vantage_user_role");
+    localStorage.removeItem("vantage_user_dept");
+    alert("You have signed out of your workspace.");
+    window.location.href = "auth.html";
+}
+
+window.handleSignOut = handleSignOut;
 window.toggleAIAgentConsoleVisibility = toggleAIAgentConsoleVisibility;
 window.renderProposalReviewBoard = renderProposalReviewBoard;
 

@@ -66,12 +66,15 @@
                         <option value="custom">Custom Workspace</option>
                     </select>
                 </div>
-                <div class="user-profile">
+                <div class="user-profile" style="position: relative; display: flex; align-items: center; width: 100%;">
                     <div class="avatar" id="user-avatar-badge">U</div>
                     <div class="user-info">
                         <h4 id="user-name-display">Startup Team</h4>
                         <span id="user-role-display">Workspace Lead</span>
                     </div>
+                    <button onclick="handleSignOut()" class="btn-signout" title="Sign Out" style="margin-left: auto; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: inline-flex; align-items: center; justify-content: center; transition: color 0.2s;">
+                        <i data-lucide="log-out" style="width: 14px; height: 14px;"></i>
+                    </button>
                 </div>
             </div>
         </aside>

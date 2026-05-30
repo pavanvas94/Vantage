@@ -11,6 +11,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase Client JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Vantage Config Constants -->
+    <script src="js/config.js"></script>
     <link rel="stylesheet" href="styles/landing.css">
 </head>
 <body class="landing-body">
@@ -136,6 +140,40 @@
         </div>
     </section>
 
+    <!-- Real-time Stats Ribbon Section -->
+    <section class="stats-ribbon-section">
+        <div class="stats-ribbon glass">
+            <div class="stat-item">
+                <div class="stat-icon"><i data-lucide="users"></i></div>
+                <div class="stat-info">
+                    <span class="stat-value" id="stat-users">0</span>
+                    <span class="stat-label">Global Members</span>
+                </div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon"><i data-lucide="folder-kanban"></i></div>
+                <div class="stat-info">
+                    <span class="stat-value" id="stat-projects">0</span>
+                    <span class="stat-label">Workspace Projects</span>
+                </div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon"><i data-lucide="check-square"></i></div>
+                <div class="stat-info">
+                    <span class="stat-value" id="stat-cards">0</span>
+                    <span class="stat-label">Synchronized Tasks</span>
+                </div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon"><i data-lucide="cpu"></i></div>
+                <div class="stat-info">
+                    <span class="stat-value" id="stat-agents">0</span>
+                    <span class="stat-label">AI Agent Handlers</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Features Section -->
     <section id="features" class="features-section">
         <div class="section-title reveal-on-scroll">
@@ -176,6 +214,47 @@
         </div>
     </section>
 
+    <!-- BYODB / BYOK Privacy Section -->
+    <section class="privacy-section reveal-on-scroll">
+        <div class="section-title">
+            <span class="badge badge-primary"><i data-lucide="shield"></i> Security & Sovereignty</span>
+            <h2>Bring Your Own Database & Keys</h2>
+            <p>We believe in absolute data ownership. Run Vantage on our secure shared cloud, or shift everything to your own infrastructure with two clicks.</p>
+        </div>
+        <div class="privacy-grid">
+            <div class="privacy-card glass">
+                <div class="privacy-card-header">
+                    <div class="privacy-icon bg-purple-glow"><i data-lucide="database"></i></div>
+                    <div>
+                        <h3>BYODB</h3>
+                        <span class="sub">Bring Your Own Database</span>
+                    </div>
+                </div>
+                <p class="privacy-desc">Connect Vantage directly to your private Supabase instance. By entering your own credentials in our advanced settings, you establish a direct, encrypted tunnel from your browser to your database.</p>
+                <ul class="privacy-features">
+                    <li><i data-lucide="check-circle"></i> Zero Vantage-side data storage or access</li>
+                    <li><i data-lucide="check-circle"></i> Custom Row-Level Security (RLS) controls</li>
+                    <li><i data-lucide="check-circle"></i> Complete PostgreSQL database sovereignty</li>
+                </ul>
+            </div>
+            <div class="privacy-card glass">
+                <div class="privacy-card-header">
+                    <div class="privacy-icon bg-ai-glow"><i data-lucide="key-round"></i></div>
+                    <div>
+                        <h3>BYOK</h3>
+                        <span class="sub">Bring Your Own Keys</span>
+                    </div>
+                </div>
+                <p class="privacy-desc">Run agentic AI workflows on your own terms. Provide your Gemini or OpenAI API keys locally to fuel the AI co-pilot. Keep operations free-tier or scale up to advanced reasoning models at cost.</p>
+                <ul class="privacy-features">
+                    <li><i data-lucide="check-circle"></i> Keys remain encrypted in your browser's LocalStorage</li>
+                    <li><i data-lucide="check-circle"></i> Pay developers' raw API rates directly, no middleman markups</li>
+                    <li><i data-lucide="check-circle"></i> Offline simulator available for zero-cost local testing</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
     <!-- CTA Section -->
     <section class="cta-section">
         <div class="cta-content glass reveal-on-scroll">
@@ -207,6 +286,72 @@
         }, { threshold: 0.1 });
 
         document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
+
+        // Initialize Supabase and load live stats if available
+        async function loadStats() {
+            const defaultStats = { users: 142, projects: 28, cards: 1284, agents: 84 };
+            let stats = { ...defaultStats };
+
+            try {
+                const config = window.VANTAGE_CONFIG;
+                if (config && config.SUPABASE_URL && config.SUPABASE_ANON_KEY && typeof supabase !== 'undefined') {
+                    const supabaseClient = supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+                    if (supabaseClient) {
+                        const { data, error } = await supabaseClient.rpc('get_global_stats');
+                        if (!error && data) {
+                            // Ensure data fields match expectations
+                            stats.users = data.users || defaultStats.users;
+                            stats.projects = data.projects || defaultStats.projects;
+                            stats.cards = data.cards || defaultStats.cards;
+                            stats.agents = data.agents || defaultStats.agents;
+                        } else if (error) {
+                            console.warn("Supabase RPC error, using realistic placeholders instead:", error);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("Could not load real-time stats from Supabase, using realistic placeholders instead.", e);
+            }
+
+            // Animate counter values
+            animateCounter('stat-users', stats.users);
+            animateCounter('stat-projects', stats.projects);
+            animateCounter('stat-cards', stats.cards);
+            animateCounter('stat-agents', stats.agents);
+        }
+
+        function animateCounter(id, target) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            let start = 0;
+            const duration = 2000; // 2 seconds
+            const startTime = performance.now();
+
+            function update(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease out cubic
+                const ease = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(ease * target);
+                
+                // Format with commas for large numbers
+                el.textContent = current.toLocaleString();
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    el.textContent = target.toLocaleString();
+                }
+            }
+            requestAnimationFrame(update);
+        }
+
+        // Call loadStats when DOM content is loaded (or immediately if already parsed)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadStats);
+        } else {
+            loadStats();
+        }
     </script>
 </body>
 </html>

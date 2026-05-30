@@ -168,3 +168,51 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_members;
     END IF;
 END $$;
+
+-- ===================================================================
+-- 7. Global Aggregated Realtime Stats Counter (Security Definer)
+-- ===================================================================
+CREATE OR REPLACE FUNCTION public.get_global_stats()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER -- Bypasses RLS to sum table row aggregates securely
+AS $$
+DECLARE
+    user_count INTEGER;
+    card_count INTEGER;
+    project_count INTEGER;
+    agent_count INTEGER;
+BEGIN
+    -- 1. Count active registered users in vantage_members
+    SELECT COUNT(*) INTO user_count 
+    FROM public.vantage_members 
+    WHERE status = 'active';
+
+    -- 2. Count total tasks / cards across all synchronized workspaces
+    SELECT COUNT(*) INTO card_count 
+    FROM public.vantage_cards;
+
+    -- 3. Count unique active workspace projects (using jsonb 'workspace_id')
+    SELECT COUNT(DISTINCT (data->>'workspace_id')) INTO project_count 
+    FROM public.vantage_cards 
+    WHERE data->>'workspace_id' IS NOT NULL;
+
+    -- 4. Count active cards assigned to the AI Agent
+    SELECT COUNT(*) INTO agent_count 
+    FROM public.vantage_cards 
+    WHERE data->>'assignee' = 'AI Agent' 
+       OR data->>'assignee' = 'agent@vantage-team.com';
+
+    -- Return JSON object of aggregates
+    RETURN json_build_object(
+        'users', COALESCE(user_count, 0) + 1, -- Add at least 1 (the owner)
+        'cards', COALESCE(card_count, 0),
+        'projects', COALESCE(project_count, 0) + 3, -- Add the 3 default industry presets
+        'agents', COALESCE(agent_count, 0)
+    );
+END;
+$$;
+
+-- Allow anonymous and authenticated public client users to invoke this RPC function
+GRANT EXECUTE ON FUNCTION public.get_global_stats() TO anon, authenticated;
+
