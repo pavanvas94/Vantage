@@ -1772,6 +1772,7 @@ h1, h2, h3, h4, h5, .modal-title-input {
     align-items: center;
     border-bottom: 1px solid var(--border-light);
     padding-bottom: 0.75rem;
+    padding-right: 2.25rem; /* Prevents close button overlap on desktop */
     margin-bottom: 0.75rem;
 }
 
@@ -2528,6 +2529,11 @@ h1, h2, h3, h4, h5, .modal-title-input {
 
     .modal-layout {
         flex-direction: column;
+    }
+
+    .modal-left {
+        border-right: none !important;
+        padding-right: 3rem !important; /* Prevents text overlap with close button on mobile */
     }
 
     .modal-right {
