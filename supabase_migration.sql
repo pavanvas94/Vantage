@@ -135,7 +135,36 @@ BEGIN
     END IF;
 END $$;
 
--- Enable replication for each table
-ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_notifications;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_cards;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_members;
+-- Enable replication for each table safely
+DO $$
+BEGIN
+    -- Add vantage_notifications if not already added
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_rel pr 
+        JOIN pg_class c ON pr.prrelid = c.oid 
+        JOIN pg_publication p ON pr.prpubid = p.oid 
+        WHERE p.pubname = 'supabase_realtime' AND c.relname = 'vantage_notifications'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_notifications;
+    END IF;
+
+    -- Add vantage_cards if not already added
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_rel pr 
+        JOIN pg_class c ON pr.prrelid = c.oid 
+        JOIN pg_publication p ON pr.prpubid = p.oid 
+        WHERE p.pubname = 'supabase_realtime' AND c.relname = 'vantage_cards'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_cards;
+    END IF;
+
+    -- Add vantage_members if not already added
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_rel pr 
+        JOIN pg_class c ON pr.prrelid = c.oid 
+        JOIN pg_publication p ON pr.prpubid = p.oid 
+        WHERE p.pubname = 'supabase_realtime' AND c.relname = 'vantage_members'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_members;
+    END IF;
+END $$;
