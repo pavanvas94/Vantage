@@ -343,13 +343,26 @@ body.landing-body {
     padding: 0.75rem;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.mockup-status-zone {
+    height: 32px;
+    width: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .mockup-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
-    height: 100%;
+    flex-grow: 1;
+    position: relative;
 }
 
 .mockup-col {
@@ -368,6 +381,14 @@ body.landing-body {
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.3px;
+    margin-bottom: 0.2rem;
+}
+
+.mockup-slot-placeholder {
+    height: 72px;
+    border: 1px dashed rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.01);
 }
 
 .mockup-item {
@@ -378,181 +399,243 @@ body.landing-body {
 }
 
 .mockup-item.static-filler {
-    opacity: 0.4;
+    opacity: 0.3;
 }
 
 /* ================================================
-   ANIMATED CARD (moves across columns)
+   SINGLE MOVEABLE HIGHLIGHT CARD & INTERNAL PARTS
    ================================================ */
 .animated-card {
     position: absolute;
-    width: 120px;
-    background: rgba(108, 92, 231, 0.08);
+    width: calc((100% - 1.0rem) / 3 - 0.8rem);
+    left: 0.4rem;
+    /* Aligns perfectly with the first placeholder slot in the column */
+    top: calc(0.4rem + 12px + 0.2rem + 0.4rem);
+    background: rgba(10, 10, 18, 0.96);
     border: 1px solid rgba(108, 92, 231, 0.35);
     border-radius: 6px;
     padding: 6px 8px;
-    z-index: 10;
-    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.15);
-    /* Start in backlog position */
-    top: 28px;
-    left: 6px;
-    opacity: 0;
-    animation: cardLifecycle 16s ease-in-out infinite;
-}
-
-.anim-card-title {
-    font-size: 0.55rem;
-    font-weight: 700;
-    color: #fff;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 4px;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    z-index: 10;
+    pointer-events: none;
+    
+    animation: cardMove 16s ease-in-out infinite, cardBorderGlow 16s ease-in-out infinite;
 }
 
-.anim-card-dot {
+.card-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-tag {
+    font-size: 0.45rem;
+    font-weight: 700;
+    color: #a29bfe;
+    background: rgba(108, 92, 231, 0.15);
+    padding: 1px 4px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.card-status-dot {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: #6c5ce7;
+    background: #fdcb6e;
+    animation: cardStatusDotAnim 16s infinite;
+}
+
+.card-title {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 1px 0;
+}
+
+.card-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.check-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.48rem;
+    color: var(--text-secondary);
+}
+
+.check-box {
+    width: 9px;
+    height: 9px;
+    border: 1px solid var(--border-light);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.02);
     flex-shrink: 0;
 }
 
-.anim-card-checklist {
+.check-box svg {
+    width: 6px;
+    height: 6px;
+    color: #55efc4;
+    opacity: 0;
+    display: block;
+}
+
+#chk-1 svg {
+    animation: svgCheck1 16s infinite;
+}
+
+#chk-2 svg {
+    animation: svgCheck2 16s infinite;
+}
+
+#chk-1 .item-text {
+    animation: textStrike1 16s infinite;
+}
+
+#chk-2 .item-text {
+    animation: textStrike2 16s infinite;
+}
+
+.card-progress {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.progress-bar {
+    flex-grow: 1;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #6c5ce7, #a29bfe);
+    animation: progressFill 16s ease-in-out infinite;
+}
+
+.progress-val {
+    font-size: 0.45rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    width: 18px;
+    text-align: right;
+}
+
+.progress-val::after {
+    content: "0%";
+    animation: progressValAnim 16s infinite;
+}
+
+/* ================================================
+   COMPACT FLOATING STATUS PANELS
+   ================================================ */
+.status-panel {
+    position: absolute;
+    top: 2px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(12, 12, 20, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(108, 92, 231, 0.25);
+    border-radius: 8px;
+    padding: 4px 10px;
+    z-index: 15;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.status-icon-wrap {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.chat-icon {
+    background: rgba(162, 155, 254, 0.2);
+    color: #a29bfe;
+}
+.ai-icon {
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.25), rgba(253, 121, 168, 0.2));
+    color: #a29bfe;
+}
+.approve-icon {
+    background: rgba(0, 184, 148, 0.2);
+    color: #55efc4;
+}
+
+.status-text {
     display: flex;
     flex-direction: column;
     gap: 2px;
 }
 
-.anim-check-item {
-    font-size: 0.48rem;
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 3px;
-}
-
-.anim-checkbox {
-    width: 7px;
-    height: 7px;
-    border-radius: 2px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    flex-shrink: 0;
-    transition: background 0.3s, border-color 0.3s;
-}
-
-/* Checked state — toggled by animation */
-.anim-check-item.checked .anim-checkbox {
-    background: #55efc4;
-    border-color: #55efc4;
-}
-.anim-check-item.checked {
-    color: #55efc4;
-    text-decoration: line-through;
-}
-
-/* ================================================
-   OVERLAY PANELS (Chat, AI, Approval)
-   ================================================ */
-.anim-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(6, 6, 9, 0.92);
-    backdrop-filter: blur(4px);
-    display: flex;
-    flex-direction: column;
-    padding: 1.25rem 1rem;
-    gap: 0.5rem;
-    z-index: 20;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.4s;
-}
-
-/* -- Chat Overlay -- */
-.anim-chat-overlay {
-    animation: chatOverlayAnim 16s ease-in-out infinite;
-}
-
-.anim-chat-header {
-    font-size: 0.65rem;
+.status-label {
+    font-size: 0.6rem;
     font-weight: 700;
-    color: #a29bfe;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    margin-bottom: 0.25rem;
+    color: #fff;
 }
 
-.anim-chat-line {
-    height: 6px;
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 3px;
-    animation: chatLinePulse 2s ease-in-out infinite;
-}
-
-.anim-scan-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent 0%, #a29bfe 50%, transparent 100%);
-    animation: scanBarMove 2s ease-in-out infinite;
-}
-
-/* -- AI Agent Overlay -- */
-.anim-ai-overlay {
-    animation: aiOverlayAnim 16s ease-in-out infinite;
-}
-
-.anim-ai-header {
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: #a29bfe;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    margin-bottom: 0.25rem;
-}
-
-.anim-ai-log {
-    font-size: 0.55rem;
+.status-detail {
+    font-size: 0.5rem;
     color: var(--text-muted);
     font-family: monospace;
-    opacity: 0;
-    transform: translateX(-8px);
 }
 
-#anim-log-1 { animation: logTypein 16s ease-in-out infinite; animation-delay: 0s; }
-#anim-log-2 { animation: logTypein 16s ease-in-out infinite; animation-delay: 0.5s; }
-#anim-log-3 { animation: logTypein 16s ease-in-out infinite; animation-delay: 1s; }
-
-/* -- Approval Overlay -- */
-.anim-approval-overlay {
-    animation: approvalOverlayAnim 16s ease-in-out infinite;
-    align-items: center;
-    justify-content: center;
+.scan-indicator {
+    width: 60px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    overflow: hidden;
 }
 
-.anim-approval-badge {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(0, 184, 148, 0.12);
-    border: 1px solid rgba(0, 184, 148, 0.35);
-    border-radius: 8px;
-    padding: 0.6rem 1.2rem;
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: #55efc4;
-    animation: badgePop 16s ease-in-out infinite;
+.scan-fill {
+    height: 100%;
+    width: 0%;
+    background: #a29bfe;
+    border-radius: 2px;
+}
+
+.panel-chat {
+    animation: panelChat 16s ease-in-out infinite;
+    border-color: rgba(162, 155, 254, 0.3);
+}
+.panel-chat .scan-fill {
+    animation: scanFillAnim 16s ease-in-out infinite;
+}
+
+.panel-ai {
+    animation: panelAI 16s ease-in-out infinite;
+    border-color: rgba(108, 92, 231, 0.3);
+}
+
+.panel-approve {
+    animation: panelApprove 16s ease-in-out infinite;
+    border-color: rgba(0, 184, 148, 0.3);
 }
 
 /* -- Heritage Sync Bar -- */
@@ -581,99 +664,164 @@ body.landing-body {
     height: 6px;
     border-radius: 50%;
     background: #55efc4;
+    flex-shrink: 0;
     animation: dotPulse 1.5s infinite;
 }
 
 /* ================================================
-   KEYFRAME TIMELINE (16-second synchronized loop)
-   
-   Timeline:
-   0s–3s   : Chat overlay visible (parsing)
-   3s–5s   : Card appears in Backlog
-   5s–7.5s : AI overlay visible (agent executing)
-   7.5s–9s : Card moves to Active, checklist checks
-   9s–11s  : Approval overlay
-   11s–14s : Card moves to Done, heritage bar appears
-   14s–16s : Reset/pause
+   TIMELINE ANIMATION KEYFRAMES (16S LOOP)
    ================================================ */
 
-@keyframes chatOverlayAnim {
-    0%   { opacity: 0; }
-    2%   { opacity: 1; }
-    16%  { opacity: 1; }
-    20%  { opacity: 0; }
+/* Card Movement */
+@keyframes cardMove {
+    0%, 9% {
+        opacity: 0;
+        transform: translate(0, 0);
+    }
+    10% {
+        opacity: 1;
+        transform: translate(0, 0);
+    }
+    28% {
+        opacity: 1;
+        transform: translate(0, 0);
+    }
+    33% {
+        opacity: 1;
+        transform: translate(calc(100% + 1.3rem), 0);
+    }
+    65% {
+        opacity: 1;
+        transform: translate(calc(100% + 1.3rem), 0);
+    }
+    70% {
+        opacity: 1;
+        transform: translate(calc(200% + 2.6rem), 0);
+    }
+    90% {
+        opacity: 1;
+        transform: translate(calc(200% + 2.6rem), 0);
+    }
+    94%, 100% {
+        opacity: 0;
+        transform: translate(calc(200% + 2.6rem), 0);
+    }
+}
+
+/* Card Glow */
+@keyframes cardBorderGlow {
+    0%, 30% {
+        border-color: rgba(108, 92, 231, 0.35);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    }
+    33%, 56% {
+        border-color: #a29bfe;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(162, 155, 254, 0.4);
+    }
+    60%, 70% {
+        border-color: #55efc4;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(85, 239, 196, 0.4);
+    }
+    71%, 90% {
+        border-color: rgba(85, 239, 196, 0.4);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+    }
+    91%, 100% {
+        border-color: rgba(108, 92, 231, 0.35);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    }
+}
+
+/* Card status dot */
+@keyframes cardStatusDotAnim {
+    0%, 30% { background: #fdcb6e; }
+    33%, 56% { background: #a29bfe; transform: scale(1.1); }
+    60%, 100% { background: #55efc4; transform: scale(1); }
+}
+
+/* Checklist Checkbox SVG Checkmarks */
+@keyframes svgCheck1 {
+    0%, 39% { opacity: 0; transform: scale(0.5); }
+    40%, 90% { opacity: 1; transform: scale(1); }
+    91%, 100% { opacity: 0; transform: scale(0.5); }
+}
+
+@keyframes svgCheck2 {
+    0%, 51% { opacity: 0; transform: scale(0.5); }
+    52%, 90% { opacity: 1; transform: scale(1); }
+    91%, 100% { opacity: 0; transform: scale(0.5); }
+}
+
+/* Checklist Text Strikeout */
+@keyframes textStrike1 {
+    0%, 39% { color: var(--text-secondary); text-decoration: none; }
+    40%, 90% { color: var(--text-muted); text-decoration: line-through; }
+    91%, 100% { color: var(--text-secondary); text-decoration: none; }
+}
+
+@keyframes textStrike2 {
+    0%, 51% { color: var(--text-secondary); text-decoration: none; }
+    52%, 90% { color: var(--text-muted); text-decoration: line-through; }
+    91%, 100% { color: var(--text-secondary); text-decoration: none; }
+}
+
+/* Progress Fill */
+@keyframes progressFill {
+    0%, 33% { width: 0%; }
+    40% { width: 50%; }
+    46% { width: 50%; }
+    52% { width: 100%; }
+    90% { width: 100%; }
+    91%, 100% { width: 0%; }
+}
+
+/* Progress Value Text */
+@keyframes progressValAnim {
+    0%, 33% { content: "0%"; }
+    34%, 46% { content: "50%"; }
+    47%, 90% { content: "100%"; }
+    91%, 100% { content: "0%"; }
+}
+
+/* Status Panels */
+@keyframes panelChat {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+    4%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    16%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+    20%  { opacity: 0; transform: translateX(-50%) translateY(-4px); }
     100% { opacity: 0; }
 }
 
-@keyframes scanBarMove {
-    0%   { top: 0; }
-    100% { top: 100%; }
+@keyframes scanFillAnim {
+    0%   { width: 0%; }
+    4%   { width: 0%; }
+    16%  { width: 100%; }
+    20%  { width: 100%; }
+    100% { width: 0%; }
 }
 
-@keyframes chatLinePulse {
-    0%, 100% { opacity: 0.4; }
-    50%      { opacity: 0.8; }
-}
-
-@keyframes cardLifecycle {
-    /* Hidden */
-    0%   { opacity: 0; left: 6px; top: 28px; }
-    /* Appear in Backlog */
-    20%  { opacity: 1; left: 6px; top: 28px; }
-    30%  { opacity: 1; left: 6px; top: 28px; }
-    /* Move to Active */
-    42%  { opacity: 1; left: calc(33.33% + 4px); top: 28px; }
-    55%  { opacity: 1; left: calc(33.33% + 4px); top: 28px; }
-    /* Move to Done */
-    68%  { opacity: 1; left: calc(66.66% + 2px); top: 28px; }
-    82%  { opacity: 1; left: calc(66.66% + 2px); top: 28px; }
-    /* Fade out */
-    90%  { opacity: 0; left: calc(66.66% + 2px); top: 28px; }
-    100% { opacity: 0; left: 6px; top: 28px; }
-}
-
-@keyframes aiOverlayAnim {
-    0%   { opacity: 0; }
-    30%  { opacity: 0; }
-    33%  { opacity: 1; }
-    47%  { opacity: 1; }
-    50%  { opacity: 0; }
+@keyframes panelAI {
+    0%, 30%   { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+    33%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+    52%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+    56%  { opacity: 0; transform: translateX(-50%) translateY(-4px); }
     100% { opacity: 0; }
 }
 
-@keyframes logTypein {
-    0%   { opacity: 0; transform: translateX(-8px); }
-    33%  { opacity: 0; transform: translateX(-8px); }
-    37%  { opacity: 1; transform: translateX(0); color: #a29bfe; }
-    47%  { opacity: 1; transform: translateX(0); color: var(--text-muted); }
-    50%  { opacity: 0; }
+@keyframes panelApprove {
+    0%, 57%   { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+    60%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+    67%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+    70%  { opacity: 0; transform: translateX(-50%) translateY(-4px); }
     100% { opacity: 0; }
 }
 
-@keyframes approvalOverlayAnim {
-    0%   { opacity: 0; }
-    55%  { opacity: 0; }
-    58%  { opacity: 1; }
-    68%  { opacity: 1; }
-    72%  { opacity: 0; }
-    100% { opacity: 0; }
-}
-
-@keyframes badgePop {
-    0%   { transform: scale(0.8); }
-    58%  { transform: scale(0.8); }
-    61%  { transform: scale(1.05); }
-    64%  { transform: scale(1); }
-    72%  { transform: scale(1); }
-    100% { transform: scale(0.8); }
-}
-
+/* Heritage Bar */
 @keyframes heritageBarAnim {
-    0%   { opacity: 0; }
-    72%  { opacity: 0; }
-    76%  { opacity: 1; }
+    0%, 69%   { opacity: 0; }
+    72%  { opacity: 1; }
     88%  { opacity: 1; }
-    92%  { opacity: 0; }
+    91%  { opacity: 0; }
     100% { opacity: 0; }
 }
 

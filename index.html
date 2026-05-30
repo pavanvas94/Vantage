@@ -63,62 +63,78 @@
                         <div class="line"></div>
                     </div>
                     <div class="mockup-content">
-                        <!-- Animated Board Grid -->
+                        <!-- Top status bar zone for alerts, ensuring no overlaps with the column board -->
+                        <div class="mockup-status-zone">
+                            <div class="status-panel panel-chat" id="panel-chat">
+                                <div class="status-icon-wrap chat-icon"><i data-lucide="message-square-plus" style="width:10px;height:10px;"></i></div>
+                                <div class="status-text">
+                                    <span class="status-label">Parsing chat log…</span>
+                                    <div class="scan-indicator"><div class="scan-fill"></div></div>
+                                </div>
+                            </div>
+
+                            <div class="status-panel panel-ai" id="panel-ai">
+                                <div class="status-icon-wrap ai-icon"><i data-lucide="sparkles" style="width:10px;height:10px;"></i></div>
+                                <div class="status-text">
+                                    <span class="status-label">AI Agent executing…</span>
+                                    <span class="status-detail">→ Researching & drafting</span>
+                                </div>
+                            </div>
+
+                            <div class="status-panel panel-approve" id="panel-approve">
+                                <div class="status-icon-wrap approve-icon"><i data-lucide="user-check" style="width:10px;height:10px;"></i></div>
+                                <div class="status-text">
+                                    <span class="status-label">Human approved ✓</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Board Grid with animated highlight card inside columns -->
                         <div class="mockup-grid">
-                            <div class="mockup-col">
+                            <div class="mockup-col" id="col-backlog">
                                 <div class="mockup-card-header">Backlog</div>
-                                <div class="mockup-item anim-card-slot" id="anim-slot-backlog"></div>
+                                <div class="mockup-slot-placeholder"></div>
                                 <div class="mockup-item static-filler"></div>
                             </div>
-                            <div class="mockup-col">
+                            <div class="mockup-col" id="col-active">
                                 <div class="mockup-card-header">Active Work</div>
-                                <div class="mockup-item anim-card-slot" id="anim-slot-active"></div>
+                                <div class="mockup-slot-placeholder"></div>
+                                <div class="mockup-item static-filler"></div>
                             </div>
-                            <div class="mockup-col">
+                            <div class="mockup-col" id="col-done">
                                 <div class="mockup-card-header">Done</div>
-                                <div class="mockup-item anim-card-slot" id="anim-slot-done"></div>
+                                <div class="mockup-slot-placeholder"></div>
+                                <div class="mockup-item static-filler"></div>
+                            </div>
+
+                            <!-- Single, high-fidelity moving card -->
+                            <div class="animated-card">
+                                <div class="card-header-row">
+                                    <span class="card-tag">AI Agent</span>
+                                    <span class="card-status-dot"></span>
+                                </div>
+                                <div class="card-title">Retail Launch</div>
+                                <div class="card-checklist">
+                                    <div class="check-item" id="chk-1">
+                                        <span class="check-box"><i data-lucide="check"></i></span>
+                                        <span class="item-text">Draft press release</span>
+                                    </div>
+                                    <div class="check-item" id="chk-2">
+                                        <span class="check-box"><i data-lucide="check"></i></span>
+                                        <span class="item-text">Web search suppliers</span>
+                                    </div>
+                                </div>
+                                <div class="card-progress">
+                                    <div class="progress-bar"><div class="progress-fill"></div></div>
+                                    <span class="progress-val"></span>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Animated Card that moves across lanes -->
-                        <div class="animated-card" id="anim-card">
-                            <div class="anim-card-title"><span class="anim-card-dot"></span> Retail Launch Plan</div>
-                            <div class="anim-card-checklist">
-                                <div class="anim-check-item" id="anim-ch-1"><span class="anim-checkbox"></span> Negotiate supplier MOQ</div>
-                                <div class="anim-check-item" id="anim-ch-2"><span class="anim-checkbox"></span> Draft retailer pitch</div>
-                                <div class="anim-check-item" id="anim-ch-3"><span class="anim-checkbox"></span> Verify packaging specs</div>
-                            </div>
-                        </div>
-
-                        <!-- Chat Overlay (WhatsApp ingestion) -->
-                        <div class="anim-overlay anim-chat-overlay" id="anim-chat">
-                            <div class="anim-chat-header"><i data-lucide="message-square-plus" style="width:12px;height:12px;"></i> Parsing Chat Log…</div>
-                            <div class="anim-chat-line" style="width: 80%"></div>
-                            <div class="anim-chat-line" style="width: 65%"></div>
-                            <div class="anim-chat-line" style="width: 90%"></div>
-                            <div class="anim-scan-bar"></div>
-                        </div>
-
-                        <!-- AI Agent Overlay -->
-                        <div class="anim-overlay anim-ai-overlay" id="anim-ai">
-                            <div class="anim-ai-header"><i data-lucide="sparkles" style="width:12px;height:12px;color:#a29bfe;"></i> AI Agent Executing…</div>
-                            <div class="anim-ai-log" id="anim-log-1">→ Planning task breakdown</div>
-                            <div class="anim-ai-log" id="anim-log-2">→ Researching competitor pricing</div>
-                            <div class="anim-ai-log" id="anim-log-3">→ Drafting supplier brief</div>
-                        </div>
-
-                        <!-- Approval Badge Overlay -->
-                        <div class="anim-overlay anim-approval-overlay" id="anim-approve">
-                            <div class="anim-approval-badge">
-                                <i data-lucide="user-check" style="width:14px;height:14px;"></i>
-                                <span>Human Review — Approved ✓</span>
-                            </div>
-                        </div>
-
-                        <!-- Heritage Sync Bar -->
+                        <!-- Bottom heritage bar -->
                         <div class="anim-heritage-bar" id="anim-heritage">
                             <span class="anim-heritage-dot"></span>
-                            <span>Milestone logged — Heritage synced</span>
+                            <span>Milestone synced to heritage timeline</span>
                         </div>
                     </div>
                 </div>
