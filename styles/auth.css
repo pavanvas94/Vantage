@@ -375,3 +375,7 @@ body.auth-body {
     color: #a29bfe;
 }
 
+.hide {
+    display: none !important;
+}
+
