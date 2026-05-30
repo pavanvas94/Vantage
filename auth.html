@@ -152,6 +152,12 @@
 
         <!-- Right Panel: Auth Forms -->
         <div class="auth-form-side">
+            <!-- Invitation Handshake Banner -->
+            <div id="invite-handshake-banner" class="hide" style="margin: 1.5rem 1.5rem 0.5rem 1.5rem; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; gap: 0.75rem; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);">
+                <i id="invite-banner-icon" data-lucide="loader" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+                <span id="invite-banner-text">Verifying invitation...</span>
+            </div>
+
             <!-- SIGN IN FORM -->
             <div id="signin-card" class="auth-card active">
                 <div class="card-header-text">
@@ -258,6 +264,211 @@
             anthropicKey: localStorage.getItem("vantage_anthropic_key") || "",
             anthropicModel: localStorage.getItem("vantage_anthropic_model") || "claude-3-5-sonnet-20240620"
         };
+
+        let activeInviteToken = null;
+        let activeInviteMember = null;
+
+        function showAuthBanner(type, message) {
+            const banner = document.getElementById("invite-handshake-banner");
+            const icon = document.getElementById("invite-banner-icon");
+            const text = document.getElementById("invite-banner-text");
+            if (!banner || !icon || !text) return;
+
+            banner.classList.remove("hide");
+            text.textContent = message;
+
+            // Reset inline styles
+            banner.style.background = "";
+            banner.style.borderColor = "";
+            banner.style.color = "";
+            icon.className = "";
+
+            if (type === "validating") {
+                banner.style.background = "rgba(162, 155, 254, 0.08)";
+                banner.style.borderColor = "rgba(162, 155, 254, 0.2)";
+                banner.style.color = "#a29bfe";
+                icon.setAttribute("data-lucide", "loader-2");
+                icon.className = "animate-spin";
+            } else if (type === "error") {
+                banner.style.background = "rgba(235, 77, 75, 0.08)";
+                banner.style.borderColor = "rgba(235, 77, 75, 0.2)";
+                banner.style.color = "#ff7675";
+                icon.setAttribute("data-lucide", "alert-triangle");
+            } else if (type === "success") {
+                banner.style.background = "rgba(46, 204, 113, 0.08)";
+                banner.style.borderColor = "rgba(46, 204, 113, 0.2)";
+                banner.style.color = "#2ecc71";
+                icon.setAttribute("data-lucide", "check-circle");
+            }
+            if (window.lucide && lucide.createIcons) {
+                lucide.createIcons();
+            }
+        }
+
+        function blockAuthForms() {
+            const inputs = document.querySelectorAll(".auth-form input, .auth-form select, .auth-form button");
+            inputs.forEach(el => {
+                el.setAttribute("disabled", "true");
+                el.style.opacity = "0.5";
+                el.style.cursor = "not-allowed";
+            });
+            const oauthBtns = document.querySelectorAll(".oauth-buttons button");
+            oauthBtns.forEach(el => {
+                el.setAttribute("disabled", "true");
+                el.style.opacity = "0.5";
+                el.style.cursor = "not-allowed";
+            });
+        }
+
+        async function consumeInviteToken(token, email) {
+            if (CONFIG.dbProvider === "supabase" && supabaseClient) {
+                try {
+                    const { error } = await supabaseClient
+                        .from("vantage_members")
+                        .update({ status: "active", invite_token: null })
+                        .eq("invite_token", token);
+                    if (error) console.error("Failed to consume invite token on Supabase:", error.message);
+                } catch(e) {
+                    console.error("Supabase consume token error:", e);
+                }
+            } else {
+                try {
+                    const localMembers = JSON.parse(localStorage.getItem("vantage_members") || "[]");
+                    const idx = localMembers.findIndex(m => m.invite_token === token);
+                    if (idx !== -1) {
+                        localMembers[idx].status = "active";
+                        localMembers[idx].invite_token = null;
+                        localStorage.setItem("vantage_members", JSON.stringify(localMembers));
+                    }
+                } catch(e) {
+                    console.error("Local consume token error:", e);
+                }
+            }
+        }
+
+        async function completeAuthRedirect(email, name, role, dept) {
+            localStorage.setItem("vantage_user_email", email);
+            localStorage.setItem("vantage_user_name", name);
+            localStorage.setItem("vantage_user_role", role);
+            localStorage.setItem("vantage_user_dept", dept);
+
+            if (activeInviteToken) {
+                await consumeInviteToken(activeInviteToken, email);
+            }
+            window.location.href = "app.html";
+        }
+
+        async function checkInvitationToken() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get("token");
+            if (!token) return;
+
+            activeInviteToken = token;
+            showAuthBanner("validating", "Verifying invitation token...");
+
+            let matchedMember = null;
+
+            if (CONFIG.dbProvider === "supabase" && supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from("vantage_members")
+                        .select("*")
+                        .eq("invite_token", token)
+                        .maybeSingle();
+
+                    if (!error && data) {
+                        const expiry = new Date(data.invite_expires_at);
+                        if (expiry > new Date()) {
+                            matchedMember = data;
+                        } else {
+                            showAuthBanner("error", "This invitation token has expired (expires in 48 hours). Please request a new invite.");
+                            blockAuthForms();
+                            return;
+                        }
+                    } else {
+                        showAuthBanner("error", "Invalid invitation token. Please check the URL or request a new invite.");
+                        blockAuthForms();
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Token verification failed:", e);
+                    showAuthBanner("error", "Database connection error during verification.");
+                    blockAuthForms();
+                    return;
+                }
+            } else {
+                // Local Mode Mock Verification
+                try {
+                    const localMembers = JSON.parse(localStorage.getItem("vantage_members") || "[]");
+                    const found = localMembers.find(m => m.invite_token === token);
+                    if (found) {
+                        const expiry = new Date(found.invite_expires_at);
+                        if (expiry > new Date()) {
+                            matchedMember = found;
+                        } else {
+                            showAuthBanner("error", "Offline Invitation has expired. (48h expiry limit reached)");
+                            blockAuthForms();
+                            return;
+                        }
+                    } else {
+                        showAuthBanner("error", "Invalid offline invitation token.");
+                        blockAuthForms();
+                        return;
+                    }
+                } catch (e) {
+                    showAuthBanner("error", "Local storage parse error.");
+                    blockAuthForms();
+                    return;
+                }
+            }
+
+            if (matchedMember) {
+                activeInviteMember = matchedMember;
+                showAuthBanner("success", `Invited to join workspace! Locked email to ${matchedMember.email}`);
+                
+                const signinEmail = document.getElementById("signin-email");
+                const signupEmail = document.getElementById("signup-email");
+                const signupName = document.getElementById("signup-name");
+                const signupRole = document.getElementById("signup-role");
+                const signupDept = document.getElementById("signup-dept");
+
+                if (signinEmail) {
+                    signinEmail.value = matchedMember.email;
+                    signinEmail.setAttribute("disabled", "true");
+                    signinEmail.style.background = "rgba(255, 255, 255, 0.02)";
+                    signinEmail.style.cursor = "not-allowed";
+                }
+                if (signupEmail) {
+                    signupEmail.value = matchedMember.email;
+                    signupEmail.setAttribute("disabled", "true");
+                    signupEmail.style.background = "rgba(255, 255, 255, 0.02)";
+                    signupEmail.style.cursor = "not-allowed";
+                }
+                if (signupName) {
+                    signupName.value = matchedMember.name;
+                }
+                if (signupRole) {
+                    signupRole.value = matchedMember.permission_role || "contributor";
+                    signupRole.setAttribute("disabled", "true");
+                    signupRole.style.background = "rgba(255, 255, 255, 0.02)";
+                    signupRole.style.cursor = "not-allowed";
+                }
+                if (signupDept) {
+                    signupDept.value = matchedMember.role || "ops";
+                    signupDept.setAttribute("disabled", "true");
+                    signupDept.style.background = "rgba(255, 255, 255, 0.02)";
+                    signupDept.style.cursor = "not-allowed";
+                }
+
+                // Switch to signup card automatically
+                const signinCard = document.getElementById("signin-card");
+                const signupCard = document.getElementById("signup-card");
+                if (signinCard && signupCard) {
+                    signinCard.classList.remove("active");
+                    signupCard.classList.add("active");
+                }
+            }
+        }
 
         function initSupabase(url, key) {
             if (!url || !key) return null;
@@ -453,13 +664,10 @@
                     if (error) {
                         alert("Supabase Auth Error: " + error.message);
                     } else {
-                        localStorage.setItem("vantage_user_email", email);
-                        localStorage.setItem("vantage_user_name", email.split('@')[0]);
                         const userRole = data.user && data.user.user_metadata ? data.user.user_metadata.role : "owner";
                         const userDept = data.user && data.user.user_metadata ? data.user.user_metadata.department : "ops";
-                        localStorage.setItem("vantage_user_role", userRole);
-                        localStorage.setItem("vantage_user_dept", userDept);
-                        window.location.href = "app.html";
+                        const userName = data.user && data.user.user_metadata && data.user.user_metadata.full_name ? data.user.user_metadata.full_name : email.split('@')[0];
+                        await completeAuthRedirect(email, userName, userRole, userDept);
                     }
                 } catch (err) {
                     alert("Supabase connection failed: " + err.message);
@@ -477,12 +685,8 @@
                         alert("PocketBase Auth Error: " + (errData.message || "Invalid credentials"));
                     } else {
                         const data = await response.json();
-                        localStorage.setItem("vantage_user_email", email);
-                        localStorage.setItem("vantage_user_name", data.record.name || email.split('@')[0]);
-                        localStorage.setItem("vantage_user_dept", data.record.department || "ops");
-                        localStorage.setItem("vantage_user_role", data.record.role || "owner");
                         localStorage.setItem("vantage_pb_token", data.token);
-                        window.location.href = "app.html";
+                        await completeAuthRedirect(email, data.record.name || email.split('@')[0], data.record.role || "owner", data.record.department || "ops");
                     }
                 } catch (err) {
                     alert("PocketBase connection failed: " + err.message);
@@ -500,39 +704,31 @@
                         alert("Firebase Auth Error: " + (errData.error.message || "Invalid credentials"));
                     } else {
                         const data = await response.json();
-                        localStorage.setItem("vantage_user_email", email);
-                        localStorage.setItem("vantage_user_name", email.split('@')[0]);
+                        let userName = email.split('@')[0];
+                        let userDept = "ops";
+                        let userRole = "owner";
                         
-                        // Pull user metadata from Firestore document via REST
                         try {
                             const fsResp = await fetch(`https://firestore.googleapis.com/v1/projects/${CONFIG.fbProjectId}/databases/(default)/documents/users/${encodeURIComponent(email)}`);
                             if (fsResp.ok) {
                                 const fsDoc = await fsResp.json();
                                 const fields = fsDoc.fields;
                                 if (fields) {
-                                    localStorage.setItem("vantage_user_name", fields.name ? fields.name.stringValue : email.split('@')[0]);
-                                    localStorage.setItem("vantage_user_dept", fields.dept ? fields.dept.stringValue : "ops");
-                                    localStorage.setItem("vantage_user_role", fields.role ? fields.role.stringValue : "owner");
+                                    userName = fields.name ? fields.name.stringValue : userName;
+                                    userDept = fields.dept ? fields.dept.stringValue : userDept;
+                                    userRole = fields.role ? fields.role.stringValue : userRole;
                                 }
                             }
-                        } catch (e) {
-                            // Fallback to default
-                            localStorage.setItem("vantage_user_dept", "ops");
-                            localStorage.setItem("vantage_user_role", "owner");
-                        }
+                        } catch (e) {}
                         
-                        window.location.href = "app.html";
+                        await completeAuthRedirect(email, userName, userRole, userDept);
                     }
                 } catch (err) {
                     alert("Firebase connection failed: " + err.message);
                 }
             } else {
                 // Local Mode Fallback
-                localStorage.setItem("vantage_user_email", email);
-                localStorage.setItem("vantage_user_name", email.split('@')[0]);
-                localStorage.setItem("vantage_user_dept", "ops");
-                localStorage.setItem("vantage_user_role", "owner");
-                window.location.href = "app.html";
+                await completeAuthRedirect(email, email.split('@')[0], "owner", "ops");
             }
         });
 
@@ -558,11 +754,7 @@
                         alert("Supabase Sign Up Error: " + error.message);
                     } else {
                         alert("Supabase registration successful! Verification email sent.");
-                        localStorage.setItem("vantage_user_email", email);
-                        localStorage.setItem("vantage_user_name", name);
-                        localStorage.setItem("vantage_user_dept", dept);
-                        localStorage.setItem("vantage_user_role", role);
-                        window.location.href = "app.html";
+                        await completeAuthRedirect(email, name, role, dept);
                     }
                 } catch (err) {
                     alert("Supabase connection failed: " + err.message);
@@ -595,12 +787,8 @@
                         });
                         if (loginResp.ok) {
                             const data = await loginResp.json();
-                            localStorage.setItem("vantage_user_email", email);
-                            localStorage.setItem("vantage_user_name", name);
-                            localStorage.setItem("vantage_user_dept", dept);
-                            localStorage.setItem("vantage_user_role", role);
                             localStorage.setItem("vantage_pb_token", data.token);
-                            window.location.href = "app.html";
+                            await completeAuthRedirect(email, name, role, dept);
                         }
                     }
                 } catch (err) {
@@ -632,22 +820,14 @@
                             body: JSON.stringify(fsBody)
                         });
                         
-                        localStorage.setItem("vantage_user_email", email);
-                        localStorage.setItem("vantage_user_name", name);
-                        localStorage.setItem("vantage_user_dept", dept);
-                        localStorage.setItem("vantage_user_role", role);
-                        window.location.href = "app.html";
+                        await completeAuthRedirect(email, name, role, dept);
                     }
                 } catch (err) {
                     alert("Firebase connection failed: " + err.message);
                 }
             } else {
                 // Local sandbox setup
-                localStorage.setItem("vantage_user_email", email);
-                localStorage.setItem("vantage_user_name", name);
-                localStorage.setItem("vantage_user_dept", dept);
-                localStorage.setItem("vantage_user_role", role);
-                window.location.href = "app.html";
+                await completeAuthRedirect(email, name, role, dept);
             }
         });
 
@@ -689,6 +869,9 @@
                 }
             });
         }
+
+        // Run invitation verification on page load
+        checkInvitationToken();
     </script>
 </body>
 </html>

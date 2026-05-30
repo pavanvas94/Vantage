@@ -87,3 +87,55 @@ CREATE POLICY "Allow insert for audit logs" ON public.vantage_audit_logs FOR INS
 -- (NO UPDATE OR DELETE POLICIES CREATED FOR SECURITY COMPLIANCE)
 
 
+-- ===================================================================
+-- 6. Invite Handshake & Realtime Setup
+-- ===================================================================
+
+-- Add email and token columns if they do not exist
+ALTER TABLE public.vantage_members ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.vantage_members ADD COLUMN IF NOT EXISTS invite_token UUID;
+ALTER TABLE public.vantage_members ADD COLUMN IF NOT EXISTS invite_expires_at TIMESTAMP WITH TIME ZONE;
+
+-- Add RLS policy for anonymous invite token validation
+-- (Allows public/unauthenticated users to search for token details to unlock signup)
+CREATE POLICY "Allow public select for invite validation" 
+ON public.vantage_members 
+FOR SELECT 
+TO anon, authenticated
+USING (invite_token IS NOT NULL);
+
+-- Drop previous select policy and replace with tenant separation + email check
+DROP POLICY IF EXISTS "Allow select for members" ON public.vantage_members;
+CREATE POLICY "Allow select for members" 
+ON public.vantage_members 
+FOR SELECT 
+USING (
+    auth.jwt() ->> 'email' = workspace_owner 
+    OR auth.jwt() ->> 'email' = email 
+    OR invite_token IS NOT NULL
+);
+
+-- Drop previous update policy and allow members to self-update (status to active)
+DROP POLICY IF EXISTS "Allow update for members" ON public.vantage_members;
+CREATE POLICY "Allow update for members" 
+ON public.vantage_members 
+FOR UPDATE 
+USING (
+    auth.jwt() ->> 'email' = workspace_owner 
+    OR auth.jwt() ->> 'email' = email
+    OR invite_token IS NOT NULL
+);
+
+-- Enable Realtime replication for cards, members, and notifications
+-- Ensure publication exists
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        CREATE PUBLICATION supabase_realtime;
+    END IF;
+END $$;
+
+-- Enable replication for each table
+ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_notifications;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_cards;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_members;

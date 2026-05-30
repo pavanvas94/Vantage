@@ -415,13 +415,14 @@ class VantageState {
     seedDefaultMembers() {
         const userName = localStorage.getItem("vantage_user_name") || "Team Lead";
         const userDept = localStorage.getItem("vantage_user_dept") || "ops";
+        const userEmail = localStorage.getItem("vantage_user_email") || "owner@vantage-team.com";
         this.members = [
-            { name: userName, role: userDept, status: "active" },
-            { name: "AI Agent", role: "ops", status: "active", permission_role: "agent" },
-            { name: "Priya", role: "ops", status: "active" },
-            { name: "Raj", role: "sales", status: "active" },
-            { name: "Deepak", role: "rd", status: "active" },
-            { name: "Sam", role: "finance", status: "active" }
+            { name: userName, role: userDept, status: "active", email: userEmail, permission_role: "owner" },
+            { name: "AI Agent", role: "ops", status: "active", email: "agent@vantage-team.com", permission_role: "agent" },
+            { name: "Priya", role: "ops", status: "active", email: "priya@vantage-team.com", permission_role: "contributor" },
+            { name: "Raj", role: "sales", status: "active", email: "raj@vantage-team.com", permission_role: "contributor" },
+            { name: "Deepak", role: "rd", status: "active", email: "deepak@vantage-team.com", permission_role: "contributor" },
+            { name: "Sam", role: "finance", status: "active", email: "sam@vantage-team.com", permission_role: "reader" }
         ];
         localStorage.setItem("vantage_members", JSON.stringify(this.members));
     }
@@ -883,17 +884,27 @@ function initApp() {
         teamInviteBtn.addEventListener("click", () => {
             const nameInput = document.getElementById("team-new-name");
             const roleSelect = document.getElementById("team-new-role");
+            const emailInput = document.getElementById("team-new-email");
+            const permissionRoleSelect = document.getElementById("team-new-permission-role");
+
             const name = nameInput ? nameInput.value.trim() : "";
             const role = roleSelect ? roleSelect.value : "ops";
+            const email = emailInput ? emailInput.value.trim() : "";
+            const permissionRole = permissionRoleSelect ? permissionRoleSelect.value : "contributor";
             
             if (!name) {
                 alert("Please enter a collaborator name.");
                 return;
             }
+            if (!email) {
+                alert("Please enter a collaborator email.");
+                return;
+            }
             
-            const dummyNode = { name, role };
+            const dummyNode = { name, role, email, permission_role: permissionRole };
             openInviteModal(dummyNode);
             if (nameInput) nameInput.value = "";
+            if (emailInput) emailInput.value = "";
         });
     }
 
@@ -3802,6 +3813,7 @@ function setupNotifications() {
     if (APP.supabase) {
         pullNotificationsFromSupabase();
         initNotificationsRealtime();
+        initCardsRealtime();
     } else {
         renderNotifications();
     }
@@ -3861,6 +3873,46 @@ function initNotificationsRealtime() {
             .subscribe();
     } catch(e) {
         console.error("Supabase Realtime subscription error:", e);
+    }
+}
+
+function initCardsRealtime() {
+    if (!APP.supabase) return;
+    const userEmail = localStorage.getItem("vantage_user_email") || "local-sandbox";
+    try {
+        APP.supabase
+            .channel('vantage_cards_channel')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'vantage_cards', filter: `workspace_owner=eq.${userEmail}` }, payload => {
+                console.log("Realtime Cards payload:", payload);
+                const eventType = payload.eventType;
+                
+                if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                    const cardData = payload.new.data;
+                    const index = APP.cards.findIndex(c => c.id === cardData.id);
+                    if (index !== -1) {
+                        if (JSON.stringify(APP.cards[index]) !== JSON.stringify(cardData)) {
+                            APP.cards[index] = cardData;
+                            localStorage.setItem("vantage_workspace_data", JSON.stringify(APP.cards));
+                            if (typeof renderKanbanBoard === 'function') renderKanbanBoard();
+                        }
+                    } else {
+                        APP.cards.push(cardData);
+                        localStorage.setItem("vantage_workspace_data", JSON.stringify(APP.cards));
+                        if (typeof renderKanbanBoard === 'function') renderKanbanBoard();
+                    }
+                } else if (eventType === 'DELETE') {
+                    const deletedId = payload.old.id;
+                    const index = APP.cards.findIndex(c => c.id === deletedId);
+                    if (index !== -1) {
+                        APP.cards.splice(index, 1);
+                        localStorage.setItem("vantage_workspace_data", JSON.stringify(APP.cards));
+                        if (typeof renderKanbanBoard === 'function') renderKanbanBoard();
+                    }
+                }
+            })
+            .subscribe();
+    } catch(e) {
+        console.error("Supabase Cards Realtime subscription error:", e);
     }
 }
 
@@ -4264,40 +4316,82 @@ async function notifyParticipant(name, role) {
     showToastNotification(userName, `Alert sent to ${name}`, `Assigned to tasks in ${APP.getDeptName(role)}.`);
 }
 
+function generateUUID() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
 function openInviteModal(node) {
     const modal = document.getElementById("invite-modal");
     if (!modal) return;
     
-    document.getElementById("invitee-name-input").value = node.name;
-    document.getElementById("invitee-role-select").value = node.role;
+    document.getElementById("invitee-name-input").value = node.name || "";
+    document.getElementById("invitee-role-select").value = node.role || "ops";
+    document.getElementById("invitee-email-input").value = node.email || "";
+    document.getElementById("invitee-permission-role-select").value = node.permission_role || "contributor";
     
-    const workspaceName = document.getElementById("current-industry-badge").textContent || "Vantage Workspace";
-    const inviteLink = `${window.location.origin}${window.location.pathname}?workspace=${encodeURIComponent(workspaceName)}&invite=${encodeURIComponent(node.name)}&role=${node.role}`;
+    const inviteToken = generateUUID();
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
     
+    const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+    const inviteLink = `${window.location.origin}${basePath}/auth.html?token=${inviteToken}`;
     document.getElementById("invite-link-textarea").value = inviteLink;
-    document.getElementById("preview-invitee-name").textContent = node.name;
     
-    const roleBadge = document.getElementById("preview-invitee-role");
-    roleBadge.textContent = APP.getDeptName(node.role).toUpperCase();
+    const updatePreview = () => {
+        const nameVal = document.getElementById("invitee-name-input").value.trim();
+        const roleVal = document.getElementById("invitee-role-select").value;
+        const permRoleVal = document.getElementById("invitee-permission-role-select").value;
+        
+        document.getElementById("preview-invitee-name").textContent = nameVal || "Candidate";
+        const roleBadge = document.getElementById("preview-invitee-role");
+        roleBadge.textContent = `${APP.getDeptName(roleVal).toUpperCase()} - ${permRoleVal.toUpperCase()}`;
+        const depts = INDUSTRY_PRESETS[APP.industry].departments;
+        roleBadge.style.backgroundColor = depts[roleVal]?.color || "var(--primary)";
+    };
     
-    const depts = INDUSTRY_PRESETS[APP.industry].departments;
-    roleBadge.style.backgroundColor = depts[node.role]?.color || "var(--primary)";
+    document.getElementById("invitee-role-select").onchange = updatePreview;
+    document.getElementById("invitee-permission-role-select").onchange = updatePreview;
     
+    updatePreview();
     modal.classList.add("active");
     
     const copyBtn = document.getElementById("invite-copy-link-btn");
     
     const handleCopy = () => {
+        const nameVal = document.getElementById("invitee-name-input").value.trim();
+        const roleVal = document.getElementById("invitee-role-select").value;
+        const emailVal = document.getElementById("invitee-email-input").value.trim();
+        const permRoleVal = document.getElementById("invitee-permission-role-select").value;
+
+        if (!nameVal) {
+            alert("Candidate name is required.");
+            return;
+        }
+        if (!emailVal) {
+            alert("Candidate email is required.");
+            return;
+        }
+        
         navigator.clipboard.writeText(inviteLink).then(() => {
-            showToastNotification("System", "Invite Link Copied!", `Share link generated for ${node.name}.`);
+            showToastNotification("System", "Invite Link Copied!", `Share link generated for ${nameVal}.`);
             
             node.status = "invited";
+            node.email = emailVal;
+            node.permission_role = permRoleVal;
+            node.role = roleVal;
             
-            // Re-render the readiness console if tempImportedParticipants exists
             if (APP.tempImportedParticipants) {
                 const matchedPart = APP.tempImportedParticipants.find(p => p.name.toLowerCase() === node.name.toLowerCase());
                 if (matchedPart) {
                     matchedPart.status = "invited";
+                    matchedPart.email = emailVal;
+                    matchedPart.permission_role = permRoleVal;
+                    matchedPart.role = roleVal;
                 }
                 initTeamReadinessConsole(APP.tempImportedParticipants, APP.tempImportedBundles);
             }
@@ -4305,14 +4399,18 @@ function openInviteModal(node) {
             const userEmail = localStorage.getItem("vantage_user_email") || "local-sandbox";
             const memberObj = {
                 workspace_owner: userEmail,
-                name: node.name,
-                role: node.role,
+                name: nameVal,
+                role: roleVal,
+                email: emailVal,
+                permission_role: permRoleVal,
+                invite_token: inviteToken,
+                invite_expires_at: expiresAt,
                 status: 'invited'
             };
             
-            const existingIdx = APP.members.findIndex(m => m.name.toLowerCase() === node.name.toLowerCase());
+            const existingIdx = APP.members.findIndex(m => m.name.toLowerCase() === nameVal.toLowerCase());
             if (existingIdx !== -1) {
-                APP.members[existingIdx].status = 'invited';
+                APP.members[existingIdx] = memberObj;
             } else {
                 APP.members.push(memberObj);
             }
@@ -4330,7 +4428,6 @@ function openInviteModal(node) {
         });
     };
     
-    // Clean listener setup
     copyBtn.replaceWith(copyBtn.cloneNode(true));
     document.getElementById("invite-copy-link-btn").addEventListener("click", handleCopy);
 }
@@ -4810,6 +4907,9 @@ function renderTeamPanel() {
             </button>
         `;
         
+        const permissionBadge = `<span class="badge" style="font-size: 0.65rem; background: rgba(255,255,255,0.06); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 1px 4px;">${(member.permission_role || 'contributor').toUpperCase()}</span>`;
+        const emailText = member.email ? `<span style="font-size: 0.7rem; color: var(--text-muted);">${member.email}</span>` : "";
+
         const memberHtml = `
             <div class="team-member-row glass" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); margin-bottom: 0.5rem; gap: 1rem; flex-wrap: wrap;">
                 <div class="member-info-left" style="display: flex; align-items: center; gap: 0.75rem; min-width: 200px;">
@@ -4817,11 +4917,15 @@ function renderTeamPanel() {
                         ${member.name.charAt(0).toUpperCase()}
                     </div>
                     <div class="member-meta" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                             <h4 class="member-name" style="font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 600; color: #fff; margin: 0;">${member.name}</h4>
                             <span class="member-status-indicator ${statusClass}" style="font-size: 0.65rem; font-weight: 600; padding: 2px 6px; border-radius: 50px;">${statusText}</span>
+                            ${permissionBadge}
                         </div>
-                        <span class="member-role-text" style="font-size: 0.75rem; font-weight: 500; color: ${deptColor};">${deptName}</span>
+                        <div style="display: flex; flex-direction: column; gap: 0.1rem;">
+                            <span class="member-role-text" style="font-size: 0.75rem; font-weight: 500; color: ${deptColor};">${deptName}</span>
+                            ${emailText}
+                        </div>
                     </div>
                 </div>
                 
@@ -4864,7 +4968,13 @@ window.removeTeamMember = async function(name) {
 };
 
 window.reopenInviteModal = function(name, role) {
-    const dummyNode = { name, role };
+    const existing = APP.members.find(m => m.name.toLowerCase() === name.toLowerCase());
+    const dummyNode = { 
+        name, 
+        role, 
+        email: existing ? existing.email : "", 
+        permission_role: existing ? existing.permission_role : "contributor" 
+    };
     openInviteModal(dummyNode);
 };
 
