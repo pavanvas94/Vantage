@@ -348,8 +348,8 @@ class VantageState {
         
         const config = window.VANTAGE_CONFIG || {};
         this.dbProvider = localStorage.getItem("vantage_db_provider") || "local";
-        this.supabaseUrl = config.SUPABASE_URL || localStorage.getItem("vantage_supabase_url") || "";
-        this.supabaseAnonKey = config.SUPABASE_ANON_KEY || localStorage.getItem("vantage_supabase_anon_key") || "";
+        this.supabaseUrl = localStorage.getItem("vantage_supabase_url") || config.SUPABASE_URL || "";
+        this.supabaseAnonKey = localStorage.getItem("vantage_supabase_anon_key") || config.SUPABASE_ANON_KEY || "";
         this.supabase = initSupabase(this.supabaseUrl, this.supabaseAnonKey);
 
         this.firebaseProjectId = localStorage.getItem("vantage_firebase_project_id") || "";
@@ -357,7 +357,7 @@ class VantageState {
         this.pocketbaseUrl = localStorage.getItem("vantage_pocketbase_url") || "";
 
         this.aiProvider = localStorage.getItem("vantage_ai_provider") || "gemini";
-        this.apiKey = config.GEMINI_API_KEY || localStorage.getItem("vantage_api_key") || "";
+        this.apiKey = localStorage.getItem("vantage_api_key") || config.GEMINI_API_KEY || "";
         this.openaiKey = localStorage.getItem("vantage_openai_key") || "";
         this.openaiModel = localStorage.getItem("vantage_openai_model") || "gpt-4o-mini";
         this.anthropicKey = localStorage.getItem("vantage_anthropic_key") || "";
@@ -1158,6 +1158,23 @@ document.getElementById("refresh-ai-brief-btn").addEventListener("click", () => 
 
 async function triggerAILeadershipBrief(forceQuery = false) {
     const briefEl = document.getElementById("ai-leadership-brief");
+
+    // Update dashboard AI mode badge
+    const dashBadge = document.getElementById("dashboard-ai-mode-badge");
+    if (dashBadge) {
+        if (APP.apiKey) {
+            dashBadge.textContent = "LIVE AI";
+            dashBadge.style.background = "rgba(0, 184, 148, 0.15)";
+            dashBadge.style.color = "#55efc4";
+            dashBadge.style.border = "1px solid rgba(0, 184, 148, 0.3)";
+        } else {
+            dashBadge.textContent = "SIMULATION";
+            dashBadge.style.background = "rgba(253, 203, 110, 0.15)";
+            dashBadge.style.color = "#fdcb6e";
+            dashBadge.style.border = "1px solid rgba(253, 203, 110, 0.3)";
+        }
+    }
+
     if (forceQuery) {
         briefEl.innerHTML = `<p class="loading-placeholder">AI analyzing active tasks, risks, and bottlenecks...</p>`;
     } else if (briefEl.textContent.trim() !== "AI analyzing active tasks, risks, and bottlenecks..." && briefEl.innerHTML.length > 50) {
@@ -2886,7 +2903,20 @@ function openCardModal(cardId) {
     if (addHeritageBtn) addHeritageBtn.disabled = isReader;
     if (addHeritageText) addHeritageText.disabled = isReader;
 
-    document.getElementById("ai-mode-status-badge").textContent = APP.apiKey ? "Live API" : "Simulated Co-Pilot";
+    const aiModeBadge = document.getElementById("ai-mode-status-badge");
+    if (aiModeBadge) {
+        if (APP.apiKey) {
+            aiModeBadge.textContent = "Live API";
+            aiModeBadge.style.background = "rgba(0, 184, 148, 0.15)";
+            aiModeBadge.style.color = "#55efc4";
+            aiModeBadge.style.border = "1px solid rgba(0, 184, 148, 0.3)";
+        } else {
+            aiModeBadge.textContent = "Simulated Co-Pilot";
+            aiModeBadge.style.background = "rgba(253, 203, 110, 0.15)";
+            aiModeBadge.style.color = "#fdcb6e";
+            aiModeBadge.style.border = "1px solid rgba(253, 203, 110, 0.3)";
+        }
+    }
     const aiCurrentDeptSpan = document.getElementById("ai-current-dept-span");
     if (aiCurrentDeptSpan) {
         aiCurrentDeptSpan.textContent = APP.getDeptName(card.dept).toUpperCase();

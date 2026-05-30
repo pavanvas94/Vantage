@@ -44,6 +44,20 @@ body.landing-body {
     border-radius: var(--radius-lg);
 }
 
+/* ================================================
+   SCROLL REVEAL ANIMATIONS
+   ================================================ */
+.reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+
+.reveal-on-scroll.revealed {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 /* Header & Navigation */
 .landing-header {
     display: flex;
@@ -171,6 +185,9 @@ body.landing-body {
     .hero-actions {
         justify-content: center;
     }
+    .hero-trust-strip {
+        justify-content: center;
+    }
 }
 
 .hero-content {
@@ -222,7 +239,31 @@ body.landing-body {
     gap: 1rem;
 }
 
-/* Mockup Layout */
+.hero-trust-strip {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+}
+
+.hero-trust-strip span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.hero-trust-strip i {
+    width: 14px;
+    height: 14px;
+    color: #55efc4;
+}
+
+/* ================================================
+   MOCKUP LAYOUT + ANIMATED WORKFLOW
+   ================================================ */
 .hero-preview-wrap {
     display: flex;
     justify-content: center;
@@ -230,9 +271,9 @@ body.landing-body {
 
 .hero-app-mockup {
     width: 100%;
-    max-width: 500px;
+    max-width: 520px;
     border-radius: var(--radius-lg);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 60px rgba(108, 92, 231, 0.08);
     overflow: hidden;
 }
 
@@ -263,15 +304,15 @@ body.landing-body {
 }
 
 .mockup-body {
-    height: 260px;
+    height: 300px;
     display: flex;
 }
 
 .mockup-sidebar {
-    width: 60px;
+    width: 50px;
     background: rgba(255, 255, 255, 0.01);
     border-right: 1px solid var(--border-light);
-    padding: 1rem 0.5rem;
+    padding: 1rem 0.4rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -279,15 +320,15 @@ body.landing-body {
 }
 
 .mockup-sidebar .line {
-    width: 30px;
+    width: 26px;
     height: 4px;
     background: rgba(255, 255, 255, 0.08);
     border-radius: 2px;
 }
 
 .mockup-sidebar .line.logo {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border-radius: 4px;
     background: var(--primary);
     margin-bottom: 1rem;
@@ -299,13 +340,15 @@ body.landing-body {
 
 .mockup-content {
     flex-grow: 1;
-    padding: 1rem;
+    padding: 0.75rem;
+    position: relative;
+    overflow: hidden;
 }
 
 .mockup-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
+    gap: 0.5rem;
     height: 100%;
 }
 
@@ -313,38 +356,336 @@ body.landing-body {
     background: rgba(255, 255, 255, 0.02);
     border: 1px dashed rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-sm);
-    padding: 0.5rem;
+    padding: 0.4rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-}
-
-.mockup-col.card-glow {
-    border-color: var(--border-glow);
-    background: rgba(108, 92, 231, 0.02);
+    gap: 0.4rem;
 }
 
 .mockup-card-header {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 700;
     color: var(--text-secondary);
     text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 .mockup-item {
-    height: 40px;
+    height: 36px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border-light);
     border-radius: 4px;
 }
 
-.mockup-item.active {
-    border-color: var(--primary);
-    box-shadow: 0 0 6px var(--primary-glow);
+.mockup-item.static-filler {
+    opacity: 0.4;
 }
 
-/* Features Section */
-.features-section, .pricing-section {
+/* ================================================
+   ANIMATED CARD (moves across columns)
+   ================================================ */
+.animated-card {
+    position: absolute;
+    width: 120px;
+    background: rgba(108, 92, 231, 0.08);
+    border: 1px solid rgba(108, 92, 231, 0.35);
+    border-radius: 6px;
+    padding: 6px 8px;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.15);
+    /* Start in backlog position */
+    top: 28px;
+    left: 6px;
+    opacity: 0;
+    animation: cardLifecycle 16s ease-in-out infinite;
+}
+
+.anim-card-title {
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.anim-card-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #6c5ce7;
+    flex-shrink: 0;
+}
+
+.anim-card-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.anim-check-item {
+    font-size: 0.48rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.anim-checkbox {
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+    transition: background 0.3s, border-color 0.3s;
+}
+
+/* Checked state — toggled by animation */
+.anim-check-item.checked .anim-checkbox {
+    background: #55efc4;
+    border-color: #55efc4;
+}
+.anim-check-item.checked {
+    color: #55efc4;
+    text-decoration: line-through;
+}
+
+/* ================================================
+   OVERLAY PANELS (Chat, AI, Approval)
+   ================================================ */
+.anim-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(6, 6, 9, 0.92);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem 1rem;
+    gap: 0.5rem;
+    z-index: 20;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s;
+}
+
+/* -- Chat Overlay -- */
+.anim-chat-overlay {
+    animation: chatOverlayAnim 16s ease-in-out infinite;
+}
+
+.anim-chat-header {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #a29bfe;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.25rem;
+}
+
+.anim-chat-line {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    animation: chatLinePulse 2s ease-in-out infinite;
+}
+
+.anim-scan-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, #a29bfe 50%, transparent 100%);
+    animation: scanBarMove 2s ease-in-out infinite;
+}
+
+/* -- AI Agent Overlay -- */
+.anim-ai-overlay {
+    animation: aiOverlayAnim 16s ease-in-out infinite;
+}
+
+.anim-ai-header {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #a29bfe;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.25rem;
+}
+
+.anim-ai-log {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    font-family: monospace;
+    opacity: 0;
+    transform: translateX(-8px);
+}
+
+#anim-log-1 { animation: logTypein 16s ease-in-out infinite; animation-delay: 0s; }
+#anim-log-2 { animation: logTypein 16s ease-in-out infinite; animation-delay: 0.5s; }
+#anim-log-3 { animation: logTypein 16s ease-in-out infinite; animation-delay: 1s; }
+
+/* -- Approval Overlay -- */
+.anim-approval-overlay {
+    animation: approvalOverlayAnim 16s ease-in-out infinite;
+    align-items: center;
+    justify-content: center;
+}
+
+.anim-approval-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(0, 184, 148, 0.12);
+    border: 1px solid rgba(0, 184, 148, 0.35);
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #55efc4;
+    animation: badgePop 16s ease-in-out infinite;
+}
+
+/* -- Heritage Sync Bar -- */
+.anim-heritage-bar {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    right: 6px;
+    background: rgba(108, 92, 231, 0.08);
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.5rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    opacity: 0;
+    z-index: 5;
+    animation: heritageBarAnim 16s ease-in-out infinite;
+}
+
+.anim-heritage-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #55efc4;
+    animation: dotPulse 1.5s infinite;
+}
+
+/* ================================================
+   KEYFRAME TIMELINE (16-second synchronized loop)
+   
+   Timeline:
+   0s–3s   : Chat overlay visible (parsing)
+   3s–5s   : Card appears in Backlog
+   5s–7.5s : AI overlay visible (agent executing)
+   7.5s–9s : Card moves to Active, checklist checks
+   9s–11s  : Approval overlay
+   11s–14s : Card moves to Done, heritage bar appears
+   14s–16s : Reset/pause
+   ================================================ */
+
+@keyframes chatOverlayAnim {
+    0%   { opacity: 0; }
+    2%   { opacity: 1; }
+    16%  { opacity: 1; }
+    20%  { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes scanBarMove {
+    0%   { top: 0; }
+    100% { top: 100%; }
+}
+
+@keyframes chatLinePulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 0.8; }
+}
+
+@keyframes cardLifecycle {
+    /* Hidden */
+    0%   { opacity: 0; left: 6px; top: 28px; }
+    /* Appear in Backlog */
+    20%  { opacity: 1; left: 6px; top: 28px; }
+    30%  { opacity: 1; left: 6px; top: 28px; }
+    /* Move to Active */
+    42%  { opacity: 1; left: calc(33.33% + 4px); top: 28px; }
+    55%  { opacity: 1; left: calc(33.33% + 4px); top: 28px; }
+    /* Move to Done */
+    68%  { opacity: 1; left: calc(66.66% + 2px); top: 28px; }
+    82%  { opacity: 1; left: calc(66.66% + 2px); top: 28px; }
+    /* Fade out */
+    90%  { opacity: 0; left: calc(66.66% + 2px); top: 28px; }
+    100% { opacity: 0; left: 6px; top: 28px; }
+}
+
+@keyframes aiOverlayAnim {
+    0%   { opacity: 0; }
+    30%  { opacity: 0; }
+    33%  { opacity: 1; }
+    47%  { opacity: 1; }
+    50%  { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes logTypein {
+    0%   { opacity: 0; transform: translateX(-8px); }
+    33%  { opacity: 0; transform: translateX(-8px); }
+    37%  { opacity: 1; transform: translateX(0); color: #a29bfe; }
+    47%  { opacity: 1; transform: translateX(0); color: var(--text-muted); }
+    50%  { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes approvalOverlayAnim {
+    0%   { opacity: 0; }
+    55%  { opacity: 0; }
+    58%  { opacity: 1; }
+    68%  { opacity: 1; }
+    72%  { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes badgePop {
+    0%   { transform: scale(0.8); }
+    58%  { transform: scale(0.8); }
+    61%  { transform: scale(1.05); }
+    64%  { transform: scale(1); }
+    72%  { transform: scale(1); }
+    100% { transform: scale(0.8); }
+}
+
+@keyframes heritageBarAnim {
+    0%   { opacity: 0; }
+    72%  { opacity: 0; }
+    76%  { opacity: 1; }
+    88%  { opacity: 1; }
+    92%  { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes dotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* ================================================
+   FEATURES SECTION
+   ================================================ */
+.features-section {
     padding: 6rem 3rem;
     max-width: 1200px;
     margin: 0 auto;
@@ -364,11 +705,13 @@ body.landing-body {
 
 .section-title p {
     color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
 }
 
 .features-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 2rem;
 }
 
@@ -377,7 +720,7 @@ body.landing-body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    transition: transform 0.25s ease-in-out;
+    transition: transform 0.25s ease-in-out, border-color 0.25s;
 }
 
 .feature-card:hover {
@@ -404,6 +747,8 @@ body.landing-body {
 .bg-blue { background: linear-gradient(135deg, #0984e3, #74b9ff); }
 .bg-green { background: linear-gradient(135deg, #00b894, #55efc4); }
 .bg-orange { background: linear-gradient(135deg, #e17055, #ff7675); }
+.bg-ai { background: linear-gradient(135deg, #6c5ce7, #fd79a8); }
+.bg-teal { background: linear-gradient(135deg, #00cec9, #81ecec); }
 
 .feature-card h3 {
     font-size: 1.2rem;
@@ -416,87 +761,132 @@ body.landing-body {
     line-height: 1.5;
 }
 
-/* Pricing Section */
-.pricing-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 3rem;
-    max-width: 850px;
+/* ================================================
+   HOW IT WORKS SECTION
+   ================================================ */
+.how-section {
+    padding: 6rem 3rem;
+    max-width: 900px;
     margin: 0 auto;
 }
 
-.price-card {
-    padding: 3rem 2.5rem;
+.how-timeline {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0;
     position: relative;
-    overflow: hidden;
 }
 
-.featured-price {
-    border: 1px solid var(--primary);
-    background: linear-gradient(180deg, rgba(20, 20, 32, 0.8) 0%, rgba(6, 6, 9, 0.6) 100%);
-    box-shadow: 0 10px 30px rgba(108, 92, 231, 0.15);
-}
-
-.popular-ribbon {
+.how-timeline::before {
+    content: '';
     position: absolute;
-    top: 15px;
-    right: -35px;
-    background: var(--primary);
-    color: #fff;
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 0.25rem 2.5rem;
-    transform: rotate(45deg);
+    left: 28px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--primary), rgba(108, 92, 231, 0.1));
 }
 
-.price-card h4 {
-    font-family: 'Outfit', sans-serif;
-    font-size: 1.4rem;
-    color: #fff;
-}
-
-.price {
-    font-family: 'Outfit', sans-serif;
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: #fff;
-}
-
-.price span {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    font-weight: 400;
-}
-
-.price-desc {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    line-height: 1.4;
-}
-
-.price-card ul {
-    list-style: none;
+.how-step {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
+    gap: 1.5rem;
+    padding: 1.5rem 0;
+    position: relative;
 }
 
-.price-card ul li {
+.step-number {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--bg-base);
+    border: 2px solid var(--primary);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    color: var(--text-primary);
+    justify-content: center;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #a29bfe;
+    flex-shrink: 0;
+    z-index: 2;
 }
 
-.price-card ul li i {
-    width: 16px;
-    height: 16px;
-    color: var(--primary-hover);
+.step-content {
+    padding-top: 0.5rem;
+}
+
+.step-content h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+}
+
+.step-content p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+}
+
+.step-content code {
+    background: rgba(108, 92, 231, 0.15);
+    color: #a29bfe;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+}
+
+/* ================================================
+   CTA SECTION
+   ================================================ */
+.cta-section {
+    padding: 6rem 3rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.cta-content {
+    text-align: center;
+    padding: 4rem 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    border: 1px solid rgba(108, 92, 231, 0.2);
+    background: linear-gradient(180deg, rgba(20, 20, 32, 0.7) 0%, rgba(6, 6, 9, 0.5) 100%);
+    box-shadow: 0 15px 40px rgba(108, 92, 231, 0.08);
+}
+
+.cta-icon {
+    width: 40px;
+    height: 40px;
+    color: #a29bfe;
+    animation: ctaSpin 8s linear infinite;
+}
+
+@keyframes ctaSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.cta-content h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.cta-content p {
+    color: var(--text-secondary);
+    max-width: 500px;
+    font-size: 0.95rem;
+}
+
+.cta-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 0.5rem;
 }
 
 /* Footer */
@@ -506,4 +896,38 @@ body.landing-body {
     border-top: 1px solid var(--border-light);
     color: var(--text-muted);
     font-size: 0.8rem;
+}
+
+/* ================================================
+   RESPONSIVE TWEAKS
+   ================================================ */
+@media (max-width: 768px) {
+    .landing-header {
+        padding: 0.75rem 1.5rem;
+        left: 2%;
+        right: 2%;
+    }
+    .header-nav a:not(.btn) {
+        display: none;
+    }
+    .hero-content h1 {
+        font-size: 2rem;
+    }
+    .hero-app-mockup {
+        max-width: 100%;
+    }
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+    .how-timeline::before {
+        left: 20px;
+    }
+    .step-number {
+        width: 40px;
+        height: 40px;
+        font-size: 0.8rem;
+    }
+    .cta-content {
+        padding: 2.5rem 1.5rem;
+    }
 }

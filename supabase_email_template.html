@@ -1,0 +1,154 @@
+<!--
+  ============================================================
+  VANTAGE - Supabase Email Verification Template
+  ============================================================
+  
+  HOW TO USE:
+  1. Go to your Supabase Dashboard → Authentication → Email Templates
+  2. Select the "Confirm signup" template
+  3. Replace the entire HTML body with the contents below
+  4. The {{ .ConfirmationURL }} variable is automatically injected by Supabase
+  5. Save the template
+  
+  This template also works for "Magic Link" and "Change Email" templates.
+  Just replace {{ .ConfirmationURL }} references as needed.
+  ============================================================
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - Vantage</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0c0c14; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+    
+    <!-- Outer Wrapper -->
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: #0c0c14;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                
+                <!-- Inner Container -->
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width: 520px; border-radius: 16px; overflow: hidden; background: linear-gradient(180deg, rgba(18, 18, 30, 0.95) 0%, rgba(10, 10, 18, 0.98) 100%); border: 1px solid rgba(108, 92, 231, 0.2); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(108, 92, 231, 0.06);">
+                    
+                    <!-- Purple Accent Top Bar -->
+                    <tr>
+                        <td style="height: 4px; background: linear-gradient(90deg, #6c5ce7, #a29bfe, #6c5ce7);"></td>
+                    </tr>
+                    
+                    <!-- Logo & Brand Header -->
+                    <tr>
+                        <td align="center" style="padding: 40px 40px 20px 40px;">
+                            <!-- Logo Mark -->
+                            <table role="presentation" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #6c5ce7, #a29bfe); text-align: center; vertical-align: middle;">
+                                        <span style="font-size: 22px; color: #ffffff;">⊛</span>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="margin: 16px 0 0 0; font-size: 22px; font-weight: 800; color: #f3f3f6; letter-spacing: -0.3px;">Vantage</p>
+                            <p style="margin: 4px 0 0 0; font-size: 12px; font-weight: 600; color: #6c5ce7; text-transform: uppercase; letter-spacing: 1.5px;">Progression Hub</p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Divider -->
+                    <tr>
+                        <td style="padding: 0 40px;">
+                            <div style="height: 1px; background: rgba(255, 255, 255, 0.06);"></div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 30px 40px 20px 40px;">
+                            <h1 style="margin: 0 0 12px 0; font-size: 24px; font-weight: 700; color: #ffffff; line-height: 1.3;">Verify Your Email</h1>
+                            <p style="margin: 0 0 24px 0; font-size: 15px; color: #9494a8; line-height: 1.6;">
+                                Welcome to Vantage! You're one step away from accessing your AI-powered startup command center. Click the button below to confirm your email address and activate your workspace.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- CTA Button -->
+                    <tr>
+                        <td align="center" style="padding: 0 40px 30px 40px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="border-radius: 10px; background: linear-gradient(135deg, #6c5ce7, #818cf8); box-shadow: 0 6px 20px rgba(108, 92, 231, 0.35);">
+                                        <a href="{{ .ConfirmationURL }}" target="_blank" style="display: inline-block; padding: 14px 36px; font-size: 15px; font-weight: 700; color: #ffffff; text-decoration: none; letter-spacing: 0.3px;">
+                                            Confirm My Email →
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    
+                    <!-- Feature Highlights -->
+                    <tr>
+                        <td style="padding: 0 40px 30px 40px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background: rgba(108, 92, 231, 0.06); border: 1px solid rgba(108, 92, 231, 0.12); border-radius: 10px;">
+                                <tr>
+                                    <td style="padding: 20px 24px;">
+                                        <p style="margin: 0 0 12px 0; font-size: 11px; font-weight: 700; color: #a29bfe; text-transform: uppercase; letter-spacing: 1px;">What You'll Get Access To</p>
+                                        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                            <tr>
+                                                <td style="padding: 4px 0; font-size: 13px; color: #d1d1dc;">✦ WhatsApp-to-Board AI Chat Parser</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 4px 0; font-size: 13px; color: #d1d1dc;">✦ Agentic AI Task Execution & Review</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 4px 0; font-size: 13px; color: #d1d1dc;">✦ Real-Time Collaborative Kanban Board</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 4px 0; font-size: 13px; color: #d1d1dc;">✦ Permanent Heritage Decision Timeline</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    
+                    <!-- Fallback Link -->
+                    <tr>
+                        <td style="padding: 0 40px 30px 40px;">
+                            <p style="margin: 0; font-size: 12px; color: #5f5f72; line-height: 1.6;">
+                                If the button doesn't work, copy and paste this link into your browser:
+                            </p>
+                            <p style="margin: 8px 0 0 0; font-size: 11px; color: #6c5ce7; word-break: break-all; line-height: 1.5;">
+                                {{ .ConfirmationURL }}
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Bottom Divider -->
+                    <tr>
+                        <td style="padding: 0 40px;">
+                            <div style="height: 1px; background: rgba(255, 255, 255, 0.06);"></div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td align="center" style="padding: 24px 40px 32px 40px;">
+                            <p style="margin: 0; font-size: 11px; color: #5f5f72; line-height: 1.6;">
+                                This email was sent by <strong style="color: #9494a8;">Vantage Progression Hub</strong>.<br>
+                                If you didn't request this, you can safely ignore this email.
+                            </p>
+                            <p style="margin: 12px 0 0 0; font-size: 10px; color: #3a3a4a;">
+                                © 2026 Vantage. Built for startup efficiency.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                </table>
+                
+            </td>
+        </tr>
+    </table>
+    
+</body>
+</html>
