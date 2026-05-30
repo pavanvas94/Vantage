@@ -106,7 +106,7 @@ body.landing-body {
     gap: 1.5rem;
 }
 
-.header-nav a {
+.header-nav a:not(.btn) {
     color: var(--text-secondary);
     text-decoration: none;
     font-size: 0.9rem;
@@ -114,7 +114,7 @@ body.landing-body {
     transition: color 0.2s;
 }
 
-.header-nav a:hover {
+.header-nav a:not(.btn):hover {
     color: #fff;
 }
 
@@ -1085,7 +1085,7 @@ body.landing-body {
    ================================================ */
 .stats-ribbon-section {
     max-width: 1200px;
-    margin: -3rem auto 4rem auto;
+    margin: 4rem auto 4rem auto; /* Positive margin to prevent overlap and spacing collision */
     padding: 0 3rem;
     position: relative;
     z-index: 10;
@@ -1095,41 +1095,50 @@ body.landing-body {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 1.5rem;
-    padding: 2rem;
+    padding: 1rem;
     border-radius: var(--radius-lg);
-    background: rgba(18, 18, 26, 0.45);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--border-light);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    background: rgba(12, 12, 20, 0.9); /* More solid, premium dark base */
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(108, 92, 231, 0.25); /* Subtle purple gradient theme border */
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(108, 92, 231, 0.05);
 }
 
 .stat-item {
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    padding: 0.5rem 1rem;
-    transition: transform 0.25s ease-in-out;
+    padding: 1.5rem 1.25rem;
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .stat-item:hover {
-    transform: translateY(-2px);
-}
-
-.stat-item:not(:last-child) {
-    border-right: 1px solid var(--border-light);
+    transform: translateY(-4px);
+    background: rgba(108, 92, 231, 0.04);
+    border-color: rgba(108, 92, 231, 0.15);
+    box-shadow: 0 8px 25px rgba(108, 92, 231, 0.08);
 }
 
 .stat-icon {
     width: 48px;
     height: 48px;
     border-radius: var(--radius-md);
-    background: rgba(108, 92, 231, 0.1);
+    background: rgba(108, 92, 231, 0.12);
     border: 1px solid rgba(108, 92, 231, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #a29bfe;
     flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+
+.stat-item:hover .stat-icon {
+    transform: scale(1.1);
+    background: rgba(108, 92, 231, 0.2);
+    border-color: rgba(108, 92, 231, 0.4);
 }
 
 .stat-icon i {
@@ -1145,7 +1154,7 @@ body.landing-body {
 
 .stat-value {
     font-family: 'Outfit', sans-serif;
-    font-size: 1.75rem;
+    font-size: 1.85rem;
     font-weight: 800;
     color: #fff;
     line-height: 1;
@@ -1162,25 +1171,20 @@ body.landing-body {
 
 @media (max-width: 900px) {
     .stats-ribbon-section {
-        margin-top: 1rem;
+        margin-top: 2rem;
         margin-bottom: 2rem;
+        padding: 0 1.5rem;
     }
     .stats-ribbon {
         grid-template-columns: repeat(2, 1fr);
-        gap: 2rem;
-    }
-    .stat-item:nth-child(2n) {
-        border-right: none;
+        gap: 1rem;
+        padding: 1rem;
     }
 }
 
 @media (max-width: 500px) {
     .stats-ribbon {
         grid-template-columns: 1fr;
-        gap: 1.5rem;
-    }
-    .stat-item {
-        border-right: none !important;
     }
 }
 
@@ -1206,9 +1210,10 @@ body.landing-body {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
     position: relative;
     overflow: hidden;
+    background: rgba(18, 18, 26, 0.55);
 }
 
 .privacy-card::after {
@@ -1224,8 +1229,16 @@ body.landing-body {
 
 .privacy-card:hover {
     transform: translateY(-5px);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+}
+
+.privacy-card:first-child:hover {
+    border-color: rgba(108, 92, 231, 0.3);
+    box-shadow: 0 20px 45px rgba(108, 92, 231, 0.12);
+}
+
+.privacy-card:last-child:hover {
+    border-color: rgba(253, 121, 168, 0.3);
+    box-shadow: 0 20px 45px rgba(253, 121, 168, 0.12);
 }
 
 .privacy-card:first-child:hover::after {
@@ -1250,6 +1263,11 @@ body.landing-body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    transition: transform 0.3s ease;
+}
+
+.privacy-card:hover .privacy-icon {
+    transform: scale(1.05);
 }
 
 .privacy-icon i {
