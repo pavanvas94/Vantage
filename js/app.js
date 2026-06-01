@@ -1194,11 +1194,16 @@ async function triggerAILeadershipBrief(forceQuery = false) {
             dashBadge.style.color = "#55efc4";
             dashBadge.style.border = "1px solid rgba(0, 184, 148, 0.3)";
         } else {
-            dashBadge.textContent = "SIMULATION";
-            dashBadge.style.background = "rgba(253, 203, 110, 0.15)";
-            dashBadge.style.color = "#fdcb6e";
-            dashBadge.style.border = "1px solid rgba(253, 203, 110, 0.3)";
+            dashBadge.textContent = "KEY MISSING";
+            dashBadge.style.background = "rgba(235, 77, 75, 0.15)";
+            dashBadge.style.color = "#ff7675";
+            dashBadge.style.border = "1px solid rgba(235, 77, 75, 0.3)";
         }
+    }
+
+    if (!APP.apiKey) {
+        briefEl.innerHTML = `<p class="warning-placeholder" style="color: var(--prio-high); font-size: 0.8rem; padding: 0.5rem; text-align: center; border: 1px dashed rgba(235,77,75,0.3); border-radius: 6px; background: rgba(235,77,75,0.02);">⚠️ Google Gemini API key is not configured. Please add your key in Settings to generate the live Executive Brief.</p>`;
+        return;
     }
 
     if (forceQuery) {
@@ -1210,17 +1215,11 @@ async function triggerAILeadershipBrief(forceQuery = false) {
     const cardsText = APP.getActiveCards().map(c => `- [${APP.getDeptName(c.dept)}] ${c.title} (Priority: ${c.priority}, Status: ${BOARD_COLUMNS[c.column]})`).join("\n");
     const prompt = `Analyze this startup progress board and provide a high-level summary briefing for the CEO. Highlight current risks, bottlenecks, and suggestion areas based on the industry: ${APP.industry.toUpperCase()}. Format as short paragraphs and bullet points. Focus on FMCG topics if FMCG. \n\n${cardsText}`;
 
-    const cachedSimResponse = getSimulatedLeadershipBrief(APP.industry, APP.getActiveCards());
-
-    if (APP.apiKey) {
-        try {
-            const apiResponse = await queryGeminiAPI(prompt, APP.apiKey);
-            briefEl.innerHTML = formatMarkdownToHTML(apiResponse);
-        } catch (e) {
-            briefEl.innerHTML = formatMarkdownToHTML(cachedSimResponse);
-        }
-    } else {
-        simulateTyping(briefEl, formatMarkdownToHTML(cachedSimResponse));
+    try {
+        const apiResponse = await queryGeminiAPI(prompt, APP.apiKey);
+        briefEl.innerHTML = formatMarkdownToHTML(apiResponse);
+    } catch (e) {
+        briefEl.innerHTML = `<p class="error-placeholder" style="color: var(--prio-high); font-size: 0.8rem; padding: 0.5rem; text-align: center; border: 1px dashed rgba(235,77,75,0.3); border-radius: 6px; background: rgba(235,77,75,0.02);">❌ AI Brief Generation Failed: ${e.message}</p>`;
     }
 }
 
@@ -1788,24 +1787,21 @@ function setupOnboardingImporter() {
                             }];
                         }
                     } else {
-                        console.warn("Invalid JSON structure in response, fallback to mock: ", apiResponse);
-                        alert("AI parsing returned an invalid formatting structure. Falling back to simulation sample data.");
-                        APP.tempImportedCards = simResponse.cards;
-                        APP.tempImportedParticipants = simResponse.participants;
-                        APP.tempImportedBundles = simResponse.bundles;
+                        console.warn("Invalid JSON structure in response: ", apiResponse);
+                        alert("AI parsing returned an invalid formatting structure. Please try again.");
+                        switchWizardStep(1);
+                        return;
                     }
                 } catch (e) {
-                    console.error("Gemini API parser failed, using simulation: ", e);
-                    alert("Gemini API Connection Error: " + e.message + "\n\nFalling back to simulation sample data.");
-                    APP.tempImportedCards = simResponse.cards;
-                    APP.tempImportedParticipants = simResponse.participants;
-                    APP.tempImportedBundles = simResponse.bundles;
+                    console.error("Gemini API parser failed: ", e);
+                    alert("Gemini API Connection Error: " + e.message);
+                    switchWizardStep(1);
+                    return;
                 }
             } else {
-                await new Promise(r => setTimeout(r, 1500));
-                APP.tempImportedCards = simResponse.cards;
-                APP.tempImportedParticipants = simResponse.participants;
-                APP.tempImportedBundles = simResponse.bundles;
+                alert("Gemini API key is not configured. Please go to Settings to add your key.");
+                switchWizardStep(1);
+                return;
             }
 
             // Switch to Step 3: Card Deck
@@ -2701,19 +2697,6 @@ function setupCardModal() {
         });
     }
 
-    // AI console triggers
-    const aiChips = document.querySelectorAll(".ai-prompt-chip");
-    aiChips.forEach(chip => {
-        chip.addEventListener("click", () => {
-            const type = chip.getAttribute("data-prompt-type");
-            executeAIQuickAction(type);
-        });
-    });
-
-    document.getElementById("ai-chat-send-btn").addEventListener("click", () => sendAIChatMessage());
-    document.getElementById("ai-chat-input").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") sendAIChatMessage();
-    });
 }
 
 function setModalEditMode(active) {
@@ -2929,35 +2912,6 @@ function openCardModal(cardId) {
     if (addHeritageBtn) addHeritageBtn.disabled = isReader;
     if (addHeritageText) addHeritageText.disabled = isReader;
 
-    const aiModeBadge = document.getElementById("ai-mode-status-badge");
-    if (aiModeBadge) {
-        if (APP.apiKey) {
-            aiModeBadge.textContent = "Live API";
-            aiModeBadge.style.background = "rgba(0, 184, 148, 0.15)";
-            aiModeBadge.style.color = "#55efc4";
-            aiModeBadge.style.border = "1px solid rgba(0, 184, 148, 0.3)";
-        } else {
-            aiModeBadge.textContent = "Simulated Co-Pilot";
-            aiModeBadge.style.background = "rgba(253, 203, 110, 0.15)";
-            aiModeBadge.style.color = "#fdcb6e";
-            aiModeBadge.style.border = "1px solid rgba(253, 203, 110, 0.3)";
-        }
-    }
-    const aiCurrentDeptSpan = document.getElementById("ai-current-dept-span");
-    if (aiCurrentDeptSpan) {
-        aiCurrentDeptSpan.textContent = APP.getDeptName(card.dept).toUpperCase();
-    }
-
-    // Prompts labels
-    const contentLabel = document.getElementById("ai-content-button-label");
-    if (APP.industry === "fmcg") {
-        contentLabel.textContent = "Draft Marketing Copy / PR";
-    } else if (APP.industry === "tech") {
-        contentLabel.textContent = "Draft Tech Specs & Checklist";
-    } else {
-        contentLabel.textContent = "Draft Client Email / Brief";
-    }
-
     renderModalChecklist(card);
     renderModalChildCards(card);
     renderModalFiles(card);
@@ -2967,21 +2921,7 @@ function openCardModal(cardId) {
     toggleAIAgentConsoleVisibility(card.assignee === "AI Agent", card);
     renderProposalReviewBoard(card);
 
-    // Initial AI message
-    const chatBox = document.getElementById("ai-chat-history-box");
-    chatBox.innerHTML = `
-        <div class="ai-message assistant">
-            <div class="message-bubble">
-                Hello! I am your Vantage AI Co-Pilot. I see this card is set under the <strong>${APP.getDeptName(card.dept).toUpperCase()}</strong> department. 
-                Select a quick action above or chat with me.
-            </div>
-        </div>
-    `;
-
     document.getElementById("card-modal").classList.add("active");
-    
-    // Proactively generate AI recommendations
-    triggerProactiveCoPilot(card);
 }
 
 function closeCardModal() {
@@ -3291,381 +3231,9 @@ function renderModalHeritage(card) {
     });
 }
 
-// AI Console prompt chips execution
-async function executeAIQuickAction(type) {
-    const card = APP.cards.find(c => c.id === APP.activeCardId);
-    if (!card) return;
-
-    if (type === "research") {
-        await activateResearchAgent(card.id);
-        return;
-    }
-
-    const chatBox = document.getElementById("ai-chat-history-box");
-    
-    let userActionText = "";
-    let systemPrompt = "";
-
-    if (type === "blueprint") {
-        userActionText = "Draft an Execution Blueprint for this task.";
-        systemPrompt = `You are a startup advisor. Draft a structured, step-by-step checklist to implement the task: "${card.title}". Keep it short and actionable. Industry domain: ${APP.industry.toUpperCase()}, department: ${APP.getDeptName(card.dept)}.`;
-    } else if (type === "risk") {
-        userActionText = "Analyze current risks (Supply Chain / Retail listing / Project schedule).";
-        systemPrompt = `Analyze potential failure risks or compliance issues for: "${card.title}" in FMCG/business. Suggest 2 mitigation steps.`;
-    } else if (type === "content") {
-        userActionText = "Draft marketing copy or brand/project brief.";
-        systemPrompt = `Draft highly professional content for: "${card.title}". Write Instagram copy hooks or seller outreach drafts.`;
-    } else if (type === "pivot") {
-        userActionText = "Suggest a strategic Pivot Plan due to a blocker.";
-        systemPrompt = `We are facing supply or design delays on: "${card.title}". Suggest 2 strategic alternate routes (pivots).`;
-    }
-
-    chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message user"><div class="message-bubble">${userActionText}</div></div>`);
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    const loadId = "ai-loading-" + Date.now();
-    chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message assistant" id="${loadId}"><div class="message-bubble loading-placeholder">Co-Pilot is thinking...</div></div>`);
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    if (APP.apiKey) {
-        try {
-            const apiResponse = await queryGeminiAPI(systemPrompt, APP.apiKey);
-            document.getElementById(loadId).remove();
-            chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message assistant"><div class="message-bubble">${formatMarkdownToHTML(apiResponse)}</div></div>`);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        } catch (e) {
-            document.getElementById(loadId).remove();
-            const fallback = getSimulatedCardResponse(type, card);
-            chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message assistant"><div class="message-bubble">${formatMarkdownToHTML(fallback)}</div></div>`);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-    } else {
-        setTimeout(() => {
-            document.getElementById(loadId).remove();
-            const simulationResponse = getSimulatedCardResponse(type, card);
-            chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message assistant"><div class="message-bubble" id="sim-typing-box"></div></div>`);
-            simulateTyping(document.getElementById("sim-typing-box"), formatMarkdownToHTML(simulationResponse), () => {
-                chatBox.scrollTop = chatBox.scrollHeight;
-            });
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }, 800);
-    }
-}
-
-async function activateResearchAgent(cardId) {
-    const card = APP.cards.find(c => c.id === cardId);
-    if (!card) return;
-
-    const chatBox = document.getElementById("ai-chat-history-box");
-    if (!chatBox) return;
-
-    // 1. Add user query bubble to chat console
-    chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message user"><div class="message-bubble">Activate Web Research Agent for this task.</div></div>`);
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    // 2. Add assistant loader bubble
-    const loadId = "ai-loading-" + Date.now();
-    chatBox.insertAdjacentHTML("beforeend", `
-        <div class="ai-message assistant" id="${loadId}">
-            <div class="message-bubble">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="ai-rotate-icon" data-lucide="globe" style="width: 14px; height: 14px; color: #a29bfe; animation: spin 2s linear infinite;"></i>
-                    <span>Web Research Agent is browsing the web and analyzing current sources...</span>
-                </div>
-            </div>
-        </div>
-    `);
-    if (typeof lucide !== 'undefined' && lucide.createIcons) {
-        lucide.createIcons();
-    }
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    // 3. Prepare the grounding prompt anchored to date 2026-05-30
-    const currentAnchorDate = "2026-05-30";
-    const promptText = `Conduct a thorough web research brief for the task: "${card.title}".
-Description: "${card.description || 'None'}"
-Context: "${card.context || 'None'}"
-Department: "${APP.getDeptName(card.dept)}"
-Current Anchor Date: ${currentAnchorDate}.
-
-You must find and compile temporal, up-to-date, and context-anchored information relevant to this task. Focus on factual and highly relevant details. Avoid outdated resources.
-Format your response as a professional markdown research brief with clear sections:
-### 🌐 Web Research Brief: ${card.title}
-#### 📅 Reference Date: May 30, 2026
-
-#### 1. Executive Summary
-[Provide a summary of the research finding]
-
-#### 2. Key Findings & Market Intelligence (Anchored to May 2026)
-- **Point A**: [Detail with dates/trends]
-- **Point B**: [Detail with dates/trends]
-
-#### 3. Strategic Recommendations
-- [Recommendation 1]
-- [Recommendation 2]
-
-#### 4. Verified Sources (Grounding references)
-- [Reference 1]
-- [Reference 2]`;
-
-    let briefMarkdown = "";
-    let isMock = false;
-
-    // 4. Query AI with grounding enabled (Google Search tool for Gemini)
-    if (APP.apiKey && localStorage.getItem("vantage_ai_provider") === "gemini") {
-        try {
-            // Enable search grounding for Gemini
-            briefMarkdown = await queryAI(promptText, false, true);
-        } catch (e) {
-            console.warn("Gemini query failed, falling back to mock grounding: ", e);
-            briefMarkdown = getMockGroundedResearchBrief(card, currentAnchorDate);
-            isMock = true;
-        }
-    } else if (APP.apiKey && (localStorage.getItem("vantage_ai_provider") === "openai" || localStorage.getItem("vantage_ai_provider") === "anthropic")) {
-        try {
-            // queryAI for OpenAI/Claude
-            const responseText = await queryAI(promptText, false, false);
-            // Prepend metadata indicating simulated search grounding
-            briefMarkdown = `*Note: Research brief generated via ${localStorage.getItem("vantage_ai_provider").toUpperCase()} API with simulated search grounding.*\n\n${responseText}`;
-        } catch (e) {
-            console.warn("AI query failed, falling back to mock grounding: ", e);
-            briefMarkdown = getMockGroundedResearchBrief(card, currentAnchorDate);
-            isMock = true;
-        }
-    } else {
-        // No key configured: Local simulated research agent
-        await new Promise(r => setTimeout(r, 1500));
-        briefMarkdown = getMockGroundedResearchBrief(card, currentAnchorDate);
-        isMock = true;
-    }
-
-    // 5. Remove loading bubble
-    const loaderEl = document.getElementById(loadId);
-    if (loaderEl) loaderEl.remove();
-
-    // 6. Print brief to Co-Pilot history
-    chatBox.insertAdjacentHTML("beforeend", `
-        <div class="ai-message assistant">
-            <div class="message-bubble">
-                ${formatMarkdownToHTML(briefMarkdown)}
-            </div>
-        </div>
-    `);
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    // 7. Write virtual Markdown file to card.files
-    const cleanTitle = card.title.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
-    const fileName = `Research_Brief_${cleanTitle}.md`;
-    const dataUrl = `data:text/markdown;charset=utf-8,${encodeURIComponent(briefMarkdown)}`;
-    
-    // Check if a research brief file already exists, and if so, overwrite or push
-    const existingFileIdx = card.files.findIndex(f => f.name === fileName);
-    if (existingFileIdx !== -1) {
-        card.files[existingFileIdx].url = dataUrl;
-    } else {
-        card.files.push({ name: fileName, url: dataUrl });
-    }
-
-    // 8. Add Heritage log entry
-    APP.addHeritageLog(card.id, `Web Research Agent compiled context-anchored briefing to virtual file: [${fileName}]`, "Research Agent");
-
-    // 9. Invoke logAuditTrail
-    logAuditTrail("web_research", `Executed web research agent for task: "${card.title}" (${isMock ? 'Simulated Sourcing' : 'Live Grounded API'})`);
-
-    // 10. Save state & re-render
-    APP.save();
-    renderKanbanBoard();
-    renderDashboard();
-
-    // Re-render modal files and heritage panels if currently open
-    renderModalFiles(card);
-    renderModalHeritage(card);
-}
-
-function getMockGroundedResearchBrief(card, anchorDate) {
-    const isWrappers = card.title.toLowerCase().includes("wrapper") || card.title.toLowerCase().includes("packaging") || card.id === "card-1";
-    const isWholeFoods = card.title.toLowerCase().includes("buyer") || card.title.toLowerCase().includes("pitch") || card.id === "card-2";
-    const isStability = card.title.toLowerCase().includes("stability") || card.title.toLowerCase().includes("recipe") || card.id === "card-3";
-
-    if (isWrappers) {
-        return `### 🌐 Web Research Brief: Bio-Packaging Sourcing
-#### 📅 Reference Date: May 30, 2026
-
-#### 1. Executive Summary
-Analysis of compostable packaging film suppliers reveals that PHA-based films have achieved price parity with high-barrier paper packaging in Q2 2026. Sourcing from domestic manufacturers is recommended to mitigate the current 6-week maritime supply chain delays.
-
-#### 2. Key Findings & Market Intelligence (Anchored to May 2026)
-- **ASTM D6400 Certification**: Standards updated in early 2026 require compostability tests to complete within 90 days under commercial conditions.
-- **Supplier Pricing**: PHA film resins are trading at $3.20 - $3.60 per kg as of May 2026, a 12% drop from Q3 2025 due to expanded production in Nebraska.
-- **Barrier Capabilities**: High-barrier film suppliers (e.g., TIPA, Futamura) have introduced EN 13432 certified films that match the MVTR (Moisture Vapor Transmission Rate) of standard metallized OPP.
-
-#### 3. Strategic Recommendations
-- Initiate sample barrier trials with TIPA's newly launched Q1 2026 film line.
-- Secure an initial volume pledge of 5,000 meters to lock in Q2 wholesale rates.
-
-#### 4. Verified Sources (Grounding references)
-- *Sustainable Packaging Coalition Report (March 2026)* - Sourced from SPC Library
-- *Bioplastics Market Index Update (May 2026)* - Sourced from PlasticsNews Index`;
-    } else if (isWholeFoods) {
-        return `### 🌐 Web Research Brief: Whole Foods Market Category Listing
-#### 📅 Reference Date: May 30, 2026
-
-#### 1. Executive Summary
-Whole Foods Market is adjusting its Q3/Q4 2026 review timeline for premium beverage listings. Brands pitching organic items must submit margin models that verify a minimum 40% gross distributor-aligned margin.
-
-#### 2. Key Findings & Market Intelligence (Anchored to May 2026)
-- **Review Calendar**: Regional category reviews for organic juices close in late June 2026. Pitches made after June 15 will be deferred to the 2027 listing cycle.
-- **Distributor Costs**: UNFI and KeHE has adjusted distributor markup rates to 14.5% for organic, refrigerated grocery shipments as of April 2026.
-- **Slotting and Intro Allowances**: Whole Foods has introduced a new "local producer accelerator" in Q1 2026 which reduces initial slotting costs by 50% for certified local brands.
-
-#### 3. Strategic Recommendations
-- Submit sample kits directly to the regional buyer's office in Chicago before June 10, 2026.
-- Structure pricing to accommodate a 5% promotional listing discount for the first 90 days.
-
-#### 4. Verified Sources (Grounding references)
-- *Whole Foods Category Review Playbook (2026 Edition)*
-- *UNFI Distributor Standard Fee Terms (Effective April 2026)*`;
-    } else if (isStability) {
-        return `### 🌐 Web Research Brief: Citrus Juice Formulation & Cloud Stability
-#### 📅 Reference Date: May 30, 2026
-
-#### 1. Executive Summary
-Maintaining cloud stability in citrus juices without synthetic emulsifiers requires strict control over pectinesterase enzymes. Thermal flash pasteurization remains the standard, though High Pressure Processing (HPP) has gained 20% market share for clean-label brands in early 2026.
-
-#### 2. Key Findings & Market Intelligence (Anchored to May 2026)
-- **Stability Window**: Clean-label unstabilized juice iterations exhibit separation starting at Day 22 when stored at standard 4°C refrigeration.
-- **pH Control**: Keeping pH levels strictly below 3.5 inhibits natural microbial activity and extends shelf life to 45 days.
-- **HPP Availability**: Toll-processing HPP facilities in Ohio and Illinois have expanded capacity, dropping unit processing costs to $0.08 per bottle for Q2 2026 contracts.
-
-#### 3. Strategic Recommendations
-- Monitor Citrus Splash Iteration #4 at Week 3 to verify natural suspension parameters.
-- Conduct a test batch utilizing regional toll-HPP to evaluate sensory retention.
-
-#### 4. Verified Sources (Grounding references)
-- *Journal of Food Science: Clean-Label Suspensions (January 2026)*
-- *HPP Tolling Association Capacity Report (Q1 2026)*`;
-    } else {
-        return `### 🌐 Web Research Brief: ${card.title}
-#### 📅 Reference Date: May 30, 2026
-
-#### 1. Executive Summary
-An operational research assessment has been compiled for the goal: "${card.title}". This review aggregates general market practices and compliance updates relevant to the department: ${APP.getDeptName(card.dept)}.
-
-#### 2. Key Findings & Market Intelligence (Anchored to May 2026)
-- **Compliance Standards**: Industry standards updated in early 2026 require audit logs and role permission enforcement on dashboard modifications.
-- **Operational Efficiency**: General business workflows utilizing automated research agents report a 30% reduction in turnaround times for project specs.
-
-#### 3. Strategic Recommendations
-- Formulate clear task checklists to monitor subtask progression.
-- Align active task keywords with team member roles to ensure clean workload distribution.
-
-#### 4. Verified Sources (Grounding references)
-- *Vantage Research Group: Workspace Analytics (2026)*
-- *Industry Agnostic Sourcing Standards (May 2026)*`;
-    }
-}
 
 
-
-async function sendAIChatMessage() {
-    const input = document.getElementById("ai-chat-input");
-    const message = input.value.trim();
-    if (!message) return;
-
-    const card = APP.cards.find(c => c.id === APP.activeCardId);
-    if (!card) return;
-
-    const chatBox = document.getElementById("ai-chat-history-box");
-    chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message user"><div class="message-bubble">${message}</div></div>`);
-    input.value = "";
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    const loadId = "ai-loading-" + Date.now();
-    chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message assistant" id="${loadId}"><div class="message-bubble loading-placeholder">Co-Pilot is typing...</div></div>`);
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    const promptText = `Task Assistant. Card: "${card.title}". Dept: ${APP.getDeptName(card.dept)}. User asks: "${message}"`;
-
-    if (APP.apiKey) {
-        try {
-            const apiResponse = await queryGeminiAPI(promptText, APP.apiKey);
-            document.getElementById(loadId).remove();
-            chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message assistant"><div class="message-bubble">${formatMarkdownToHTML(apiResponse)}</div></div>`);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        } catch (e) {
-            document.getElementById(loadId).remove();
-            chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message assistant"><div class="message-bubble">I ran into a live connection issue. Running in offline fallback mode.</div></div>`);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-    } else {
-        setTimeout(() => {
-            document.getElementById(loadId).remove();
-            const genericSimAnswer = `Based on the details for **${card.title}**, here is my recommendation:
-            
-            1. **Prioritize the immediate bottleneck:** Ensure your team checks the active subtasks in the checklist.
-            2. **Maintain Heritage:** If you decide to change vendors or alter deliverables, log it immediately in the Card Heritage feed.
-            
-            Is there a specific detail (like supplier outreach templates) you would like me to draft?`;
-            
-            chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message assistant"><div class="message-bubble" id="chat-typing-box"></div></div>`);
-            simulateTyping(document.getElementById("chat-typing-box"), formatMarkdownToHTML(genericSimAnswer), () => {
-                chatBox.scrollTop = chatBox.scrollHeight;
-            });
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }, 1000);
-    }
-}
-
-// ----------------------------------------------------
-// AI HIGH-FIDELITY OFFLINE MOCK PRESET DATA
-// ----------------------------------------------------
-
-function getSimulatedLeadershipBrief(industry, cards) {
-    if (industry === "fmcg") {
-        return `#### 🌟 Executive Summary Briefing
-Active goals: **${cards.length} items**. 
-
-#### ⚠️ High Priority Bottlenecks & Risks:
-- **Operations (Packaging):** The task *"${cards[0]?.title || 'Sourcing wrappers'}"* is in Planning. Mechanical machine runs are lagging, posing a launch risk.
-- **Sales Listing:** Meijer Category Pitch is waiting for wholesale margin sheets.
-
-#### 💡 Recommendations:
-1. Approve accelerated accelerated heat tests for citrus juice iterations in R&D.
-2. Coordinate Ohio warehouse expansion licensing with the Meijer pitch schedule.`;
-    } else {
-        return `#### 🌟 Project Summary Briefing
-Active goals: **${cards.length} items**.
-
-#### ⚠️ Risks:
-- Database scaling actions represent migration maintenance windows.
-
-#### 💡 Suggestions:
-- Negotiate worker premium contracts prior to Q3 renewal.`;
-    }
-}
-
-function getSimulatedCardResponse(type, card) {
-    if (type === "blueprint") {
-        return `#### 📋 Sourcing & Action Execution Blueprint
-1. **Material Quality Verification:** Check OTR and MVTR levels. Confirm food contact certification.
-2. **Action Checklist:**
-   - [ ] Request sample reels for mechanical testing.
-   - [ ] Confirm MOQ margins and supplier logistics rules.`;
-    } else if (type === "risk") {
-        return `#### 🛡️ Risk Assessment & Mitigation
-- **Risk:** Shelf-life degradation due to bio-plastic barrier permeability.
-- **Mitigation:** Run double packaging accelerated heat seal checks prior to order finalization.`;
-    } else if (type === "content") {
-        return `#### 📝 Vendor Sourcing RFP Outline
-- **Objective:** Secure eco-friendly wrappers under $0.05/unit.
-- **Requirements:** ASTM D6400 certified compostable barriers.
-- **Initial Run:** 5,000 meters.`;
-    } else {
-        return `#### 🔄 Delay Pivot Plan
-- **Alternative:** Pivot evaluations from bio-films to Koehler recyclable paper.
-- **Heritage Log:** *"Sourcing shifted to recyclable papers to bypass bio-film vendor delays."*`;
-    }
-}
+// Unused mock grounding / chat / simulated helpers removed
 
 // ----------------------------------------------------
 // UI TEXT PROCESSING HELPERS
@@ -4486,421 +4054,7 @@ function openInviteModal(node) {
     
     copyBtn.replaceWith(copyBtn.cloneNode(true));
     document.getElementById("invite-copy-link-btn").addEventListener("click", handleCopy);
-}
-
-// ====================================================
-// Proactive AI Co-Pilot Recommendation Engine
-// ====================================================
-
-window.toggleProactiveRecommendations = function() {
-    const body = document.getElementById("proactive-recommendations-body");
-    const tabs = document.getElementById("proactive-tabs-container");
-    const chevron = document.getElementById("proactive-chevron");
-    if (body && chevron) {
-        const isCollapsed = body.classList.contains("hide");
-        if (isCollapsed) {
-            body.classList.remove("hide");
-            // Only show tabs if there is content loaded (i.e. not showing the skeleton loader)
-            if (tabs && !body.querySelector(".skeleton-loader-wrap")) {
-                tabs.classList.remove("hide");
-            }
-            chevron.style.transform = "rotate(0deg)";
-        } else {
-            body.classList.add("hide");
-            if (tabs) tabs.classList.add("hide");
-            chevron.style.transform = "rotate(-90deg)";
-        }
-    }
-};
-
-async function triggerProactiveCoPilot(card) {
-    const body = document.getElementById("proactive-recommendations-body");
-    const wrapper = document.getElementById("proactive-recommendations-wrapper");
-    const tabs = document.getElementById("proactive-tabs-container");
-    const chevron = document.getElementById("proactive-chevron");
-    if (!body || !wrapper) return;
-
-    // 1. Calculate Content Signature Hash
-    const currentHash = card.title + "||" + (card.description || "") + "||" + (card.context || "");
-
-    // 2. Check if cache exists and matches signature
-    if (card.proactiveInsights && card.proactiveInsights.contentHash === currentHash) {
-        console.log(`Using cached AI Co-Pilot insights for card: ${card.title}`);
-        wrapper.classList.remove("hide");
-        body.classList.remove("hide");
-        if (chevron) chevron.style.transform = "rotate(0deg)";
-        renderProactiveRecommendations(card, card.proactiveInsights.data);
-        return;
-    }
-    
-    // Ensure clean state: wrapper is flex, tabs are hidden, body is visible, chevron is open
-    wrapper.classList.remove("hide");
-    if (tabs) tabs.classList.add("hide");
-    body.classList.remove("hide");
-    if (chevron) chevron.style.transform = "rotate(0deg)";
-    
-    body.innerHTML = `
-        <div class="skeleton-loader-wrap" style="display: flex; flex-direction: column; gap: 0.65rem; padding: 0.5rem 0; animation: pulse 1.5s infinite;">
-            <div style="height: 12px; width: 85%; background: rgba(255,255,255,0.08); border-radius: 4px;"></div>
-            <div style="height: 10px; width: 95%; background: rgba(255,255,255,0.04); border-radius: 4px;"></div>
-            <div style="height: 10px; width: 70%; background: rgba(255,255,255,0.04); border-radius: 4px;"></div>
-        </div>
-    `;
-    safeCreateIcons();
-    
-    let recommendations = null;
-    const fallbackPreset = getPresetProactiveRecommendation(card);
-    
-    if (APP.apiKey) {
-        const promptText = `You are a proactive Startup Co-Pilot assistant. Analyze this task card:
-        Title: "${card.title}"
-        Description: "${card.description || 'None'}"
-        Context: "${card.context || 'None'}"
-        Department: "${APP.getDeptName(card.dept)}"
-        
-        Suggest critical risks, immediate roadmap subtasks, and outreach templates.
-        Output ONLY a valid JSON object matching this structure:
-        {
-          "summary": "Short 1-sentence next steps guide.",
-          "risks": [
-            "Supply chain or compliance risk warning",
-            "Project schedule bottleneck or quality check warning"
-          ],
-          "subtasks": [
-            "Actionable checklist item A",
-            "Actionable checklist item B"
-          ],
-          "template": {
-            "title": "Recommended Outreach RFP/Brief Template Name",
-            "content": "Template text body"
-          }
-        }
-        No markdown, just raw JSON.`;
-        
-        try {
-            const responseText = await queryGeminiAPI(promptText, APP.apiKey, true);
-            let parsed = null;
-            const startIdx = responseText.indexOf("{");
-            const endIdx = responseText.lastIndexOf("}");
-            if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
-                const jsonStr = responseText.substring(startIdx, endIdx + 1);
-                parsed = JSON.parse(jsonStr);
-            }
-            if (parsed && parsed.summary && parsed.risks && parsed.subtasks && parsed.template) {
-                recommendations = parsed;
-            } else {
-                recommendations = fallbackPreset;
-            }
-        } catch (e) {
-            console.warn("Gemini proactive query failed, using preset:", e);
-            recommendations = fallbackPreset;
-        }
-    } else {
-        // Local simulation delay for premium wiggling loader
-        await new Promise(r => setTimeout(r, 800));
-        recommendations = fallbackPreset;
-    }
-    
-    // Archive previous insights to history if present
-    if (card.proactiveInsights) {
-        card.proactiveInsightsHistory = card.proactiveInsightsHistory || [];
-        card.proactiveInsightsHistory.push(card.proactiveInsights);
-    }
-
-    // Save new insights to card cache
-    card.proactiveInsights = {
-        contentHash: currentHash,
-        data: recommendations,
-        generatedAt: new Date().toISOString(),
-        author: localStorage.getItem("vantage_user_name") || "AI Co-Pilot"
-    };
-    APP.save();
-
-    renderProactiveRecommendations(card, recommendations);
-}
-
-function getPresetProactiveRecommendation(card) {
-    const pkgPreset = {
-        summary: "Ensure packaging film has high moisture/oxygen barriers and verify ASTM D6400 raw test datasheets.",
-        risks: [
-            "Compostable barrier film has high oxygen transmission rate (OTR), risking Citrus Splashes degradation.",
-            "Vendor supply line is limited: green-wrap supplier has 6-week turnaround time for Ohio shipments."
-        ],
-        subtasks: [
-            "Request ASTM D6400 barrier data sheet",
-            "Coordinate accelerated shelf-life trial run with R&D Citrus Splash iteration",
-            "Draft packaging material MOQ price tiers matrix"
-        ],
-        template: {
-            title: "Supplier Sourcing Spec request email",
-            content: `Dear Supplier Manager,
-
-We are reviewing raw materials for our organic snack bar packaging line. Please send the ASTM D6400 technical specifications, MOQ price breaks, and lead times.
-
-Best,
-Vantage Sourcing Team`
-        }
-    };
-
-    const salesPreset = {
-        summary: "Vet Whole Foods category listing margins and coordinate sample kit shipments directly to the buyer's regional review desk.",
-        risks: [
-            "Category reviews close next month. Late pitches will miss the annual Listing slotting window.",
-            "High distributor shipping surcharge (15%) reduces target brand margin below the 40% threshold."
-        ],
-        subtasks: [
-            "Finalize Whole Foods category listing margin calculator",
-            "Ship cold Citrus Splash sample batch kit to regional buyer",
-            "Print physical sell sheet catalogs for buyer review"
-        ],
-        template: {
-            title: "Whole Foods Buyer Introduction pitch note",
-            content: `Hi [Category Buyer],
-
-We are launching Citrus Splash - our stabilizer-free organic juice line. We have slots confirmed and would love to share our regional pricing pitch deck.
-
-Best,
-Workspace Sales Lead`
-        }
-    };
-
-    const rdPreset = {
-        summary: "Establish base acid/pH metrics (target < 3.5) and monitor natural color separation ratios over 45 days.",
-        risks: [
-            "Fruit pulp separation is visible without emulsifiers, posing shelf aesthetic risks.",
-            "Accelerated chamber humidity levels could cause yeast/mold drift in unstabilized juices."
-        ],
-        subtasks: [
-            "Log Citrus Splash separation ratio at Week 3",
-            "Execute beverage thermal shock cycle runs",
-            "Draft R&D stability summary sheet"
-        ],
-        template: {
-            title: "R&D Formulation Test Log Template",
-            content: `Citrus Splash Iteration #4 - Formulation Testing Log:
-- Base pH:
-- Accelerated Chamber Temperature: 40°C
-- Shelf Visual Stability Checks:
-- Observations:`
-        }
-    };
-
-    // Keyword matching fallback
-    if (card.title.toLowerCase().includes("wrapper") || card.title.toLowerCase().includes("packaging") || card.id === "card-1") {
-        return pkgPreset;
-    } else if (card.title.toLowerCase().includes("buyer") || card.title.toLowerCase().includes("pitch") || card.id === "card-2") {
-        return salesPreset;
-    } else if (card.title.toLowerCase().includes("stability") || card.title.toLowerCase().includes("recipe") || card.id === "card-3") {
-        return rdPreset;
-    } else {
-        return {
-            summary: `Establish execution milestones and check resource availability for "${card.title}" under ${APP.getDeptName(card.dept)}.`,
-            risks: [
-                `Potential task timeline bottlenecks if collaborators are unalerted.`,
-                `Context misalignment regarding strategic workspace priorities.`
-            ],
-            subtasks: [
-                `Define subtask boundaries and checklist milestones`,
-                `Identify critical dependencies mapping this card to active bundles`
-            ],
-            template: {
-                title: "Outreach & Brief Draft",
-                content: `Hi Team,
-
-I'm coordinating the deliverables for "${card.title}". Please review the checklist and confirm your availability.
-
-Best,
-Vantage Project Lead`
-            }
-        };
-    }
-}
-
-function renderProactiveRecommendations(card, data) {
-    const body = document.getElementById("proactive-recommendations-body");
-    const tabsContainer = document.getElementById("proactive-tabs-container");
-    if (!body) return;
-    
-    // Show tabs
-    if (tabsContainer) {
-        tabsContainer.classList.remove("hide");
-        // Reset active tab button to overview
-        const tabBtns = tabsContainer.querySelectorAll(".proactive-tab-btn");
-        tabBtns.forEach(btn => {
-            if (btn.getAttribute("data-proactive-tab") === "overview") {
-                btn.classList.add("active");
-            } else {
-                btn.classList.remove("active");
-            }
-        });
-    }
-    
-    body.innerHTML = `
-        <!-- Overview Panel -->
-        <div id="proactive-panel-overview" class="proactive-panel active" style="display: flex; flex-direction: column; gap: 0.65rem;">
-            <p class="proactive-summary">${data.summary}</p>
-            
-            <div class="proactive-sub-section">
-                <span class="proactive-section-label">Identified Risks & Warnings</span>
-                <div class="proactive-risks-list">
-                    ${data.risks.map(r => `
-                        <div class="proactive-risk-item">
-                            <i data-lucide="alert-triangle" class="risk-icon"></i>
-                            <span>${r}</span>
-                        </div>
-                    `).join("")}
-                </div>
-            </div>
-        </div>
-        
-        <!-- Subtasks Panel -->
-        <div id="proactive-panel-subtasks" class="proactive-panel hide" style="display: flex; flex-direction: column; gap: 0.5rem;">
-            <span class="proactive-section-label">Suggested Subtasks</span>
-            <div class="proactive-subtasks-list">
-                ${data.subtasks.map((st, i) => `
-                    <div class="proactive-subtask-card">
-                        <span class="subtask-text">${st}</span>
-                        <button class="btn btn-proactive-add" onclick="addProactiveSubtask('${card.id}', '${st.replace(/'/g, "\\'")}', this)">
-                            <i data-lucide="plus"></i> Add
-                        </button>
-                    </div>
-                `).join("")}
-            </div>
-        </div>
-        
-        <!-- Template Panel -->
-        <div id="proactive-panel-template" class="proactive-panel hide" style="display: flex; flex-direction: column; gap: 0.5rem;">
-            <div class="template-header-row">
-                <span class="proactive-section-label">Template: ${data.template.title}</span>
-                <button class="btn btn-proactive-apply" onclick="applyProactiveTemplate('${card.id}', \`${data.template.content.replace(/`/g, "\\`").replace(/\$/g, "\\$")}\`)">
-                    <i data-lucide="check"></i> Apply
-                </button>
-            </div>
-            <div class="template-code-wrapper">
-                <pre class="template-code">${data.template.content}</pre>
-                <button class="btn btn-template-copy" onclick="copyTemplateText(\`${data.template.content.replace(/`/g, "\\`").replace(/\$/g, "\\$")}\`, this)" title="Copy template">
-                    <i data-lucide="copy" style="width: 10px; height: 10px;"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- History Panel -->
-        <div id="proactive-panel-history" class="proactive-panel hide" style="display: flex; flex-direction: column; gap: 0.5rem;">
-            <span class="proactive-section-label">AI Insights Archive</span>
-            <div class="proactive-history-list">
-                ${(!card.proactiveInsightsHistory || card.proactiveInsightsHistory.length === 0) ? `
-                    <p class="text-muted" style="font-size: 0.72rem; font-style: italic; text-align: center; margin-top: 1.5rem;">No historical records found for this card.</p>
-                ` : card.proactiveInsightsHistory.slice().reverse().map(h => {
-                    const timeStr = formatTimeAgo(new Date(h.generatedAt));
-                    return `
-                        <div class="proactive-history-item">
-                            <div class="history-meta">
-                                <strong>${h.author || 'AI Co-Pilot'}</strong>
-                                <span>${timeStr}</span>
-                            </div>
-                            <p class="history-summary">${h.data.summary}</p>
-                        </div>
-                    `;
-                }).join("")}
-            </div>
-        </div>
-    `;
-    safeCreateIcons();
-}
-
-window.switchProactiveTab = function(tabName) {
-    // Toggle active tab buttons
-    const tabBtns = document.querySelectorAll(".proactive-tab-btn");
-    tabBtns.forEach(btn => {
-        if (btn.getAttribute("data-proactive-tab") === tabName) {
-            btn.classList.add("active");
-        } else {
-            btn.classList.remove("active");
-        }
-    });
-    
-    // Toggle active content panels
-    const panels = document.querySelectorAll(".proactive-panel");
-    panels.forEach(panel => {
-        if (panel.id === `proactive-panel-${tabName}`) {
-            panel.classList.remove("hide");
-            panel.classList.add("active");
-        } else {
-            panel.classList.add("hide");
-            panel.classList.remove("active");
-        }
-    });
-    
-    safeCreateIcons();
-};
-
-window.copyTemplateText = function(text, btnElement) {
-    navigator.clipboard.writeText(text).then(() => {
-        const originalHtml = btnElement.innerHTML;
-        btnElement.innerHTML = `<i data-lucide="check" style="color: var(--success); width: 10px; height: 10px;"></i>`;
-        safeCreateIcons();
-        showToastNotification("Co-Pilot", "Copied", "Template content copied to clipboard.");
-        setTimeout(() => {
-            btnElement.innerHTML = originalHtml;
-            safeCreateIcons();
-        }, 1500);
-    });
-};
-
-window.forceRegenerateInsights = async function() {
-    if (!APP.activeCardId) return;
-    const card = APP.cards.find(c => c.id === APP.activeCardId);
-    if (!card) return;
-    
-    // Force invalid signature
-    if (card.proactiveInsights) {
-        card.proactiveInsights.contentHash = "force-refresh-triggered";
-    }
-    
-    showToastNotification("Co-Pilot", "Insights Refreshing", "Regenerating recommendation briefs from AI...");
-    await triggerProactiveCoPilot(card);
-};
-
-window.addProactiveSubtask = function(cardId, subtaskText, btnElement) {
-    const card = APP.cards.find(c => c.id === cardId);
-    if (card) {
-        card.checklist.push({
-            id: "ch-" + generateUUID(),
-            text: subtaskText,
-            done: false
-        });
-        APP.save();
-        renderModalChecklist(card);
-        renderKanbanBoard();
-        
-        if (btnElement) {
-            btnElement.disabled = true;
-            btnElement.style.background = "rgba(255,255,255,0.04)";
-            btnElement.style.borderColor = "transparent";
-            btnElement.style.color = "var(--text-muted)";
-            btnElement.innerHTML = `<i data-lucide="check" style="width:10px; height:10px;"></i> Added`;
-            safeCreateIcons();
-        }
-        
-        showToastNotification("Co-Pilot", "Checklist Updated", `Added suggested subtask to card checklist.`);
-    }
-};
-
-window.applyProactiveTemplate = function(cardId, templateContent) {
-    const card = APP.cards.find(c => c.id === cardId);
-    if (card) {
-        card.description = templateContent;
-        APP.save();
-        
-        const descInput = document.getElementById("modal-card-desc");
-        if (descInput) {
-            descInput.value = templateContent;
-        }
-        
-        renderKanbanBoard();
-        showToastNotification("Co-Pilot", "Description Updated", "Applied suggested template to card description.");
-    }
-};
+;
 
 // ====================================================
 // Phase 6: Team Management & Collaborator roster
@@ -5069,34 +4223,24 @@ async function runAIAgentOnCard(cardId) {
     const card = APP.cards.find(c => c.id === cardId);
     if (!card) return;
 
-    const chatBox = document.getElementById("ai-chat-history-box");
-    if (!chatBox) return;
+    const consoleContainer = document.getElementById("ai-agent-console-container");
+    if (!consoleContainer) return;
 
-    // 1. Add user query bubble
-    chatBox.insertAdjacentHTML("beforeend", `<div class="ai-message user"><div class="message-bubble">Execute autonomous Agent workflow for this card.</div></div>`);
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    // 2. Add assistant loader bubble with a progress log
-    const loadId = "ai-loading-" + Date.now();
-    chatBox.insertAdjacentHTML("beforeend", `
-        <div class="ai-message assistant" id="${loadId}">
-            <div class="message-bubble">
-                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="ai-rotate-icon" data-lucide="compass" style="width: 16px; height: 16px; color: #a29bfe; animation: spin 2s linear infinite;"></i>
-                        <strong id="agent-active-status" style="color: #fff; font-size: 0.8rem;">Agent: Initializing reasoning loop...</strong>
-                    </div>
-                    <div id="agent-log-trace" style="font-size: 0.7rem; color: var(--text-secondary); font-family: monospace; max-height: 120px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 4px; display: flex; flex-direction: column; gap: 0.25rem;">
-                        <div>> Loading card metadata...</div>
-                    </div>
-                </div>
+    // 1. Transform the console container into a progress log
+    consoleContainer.innerHTML = `
+        <div class="ai-agent-console-block glass" style="padding: 1rem; border-radius: 8px; border: 1px solid rgba(162,155,254,0.3); background: rgba(162,155,254,0.02); display: flex; flex-direction: column; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="ai-rotate-icon" data-lucide="compass" style="width: 16px; height: 16px; color: #a29bfe; animation: spin 2s linear infinite;"></i>
+                <strong id="agent-active-status" style="color: #fff; font-size: 0.8rem;">Agent: Initializing reasoning loop...</strong>
+            </div>
+            <div id="agent-log-trace" style="font-size: 0.7rem; color: var(--text-secondary); font-family: monospace; max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 4px; display: flex; flex-direction: column; gap: 0.25rem;">
+                <div>&gt; Loading card metadata...</div>
             </div>
         </div>
-    `);
+    `;
     if (typeof lucide !== 'undefined' && lucide.createIcons) {
         lucide.createIcons();
     }
-    chatBox.scrollTop = chatBox.scrollHeight;
 
     const logTrace = document.getElementById("agent-log-trace");
     const statusText = document.getElementById("agent-active-status");
@@ -5104,12 +4248,12 @@ async function runAIAgentOnCard(cardId) {
     // Helper to add log trace entries in real-time
     const addTrace = (text) => {
         if (logTrace) {
-            logTrace.insertAdjacentHTML("beforeend", `<div>> ${text}</div>`);
+            logTrace.insertAdjacentHTML("beforeend", `<div>&gt; ${text}</div>`);
             logTrace.scrollTop = logTrace.scrollHeight;
         }
     };
 
-    // 3. Set up the prompt
+    // 2. Set up the prompt
     const aiProvider = localStorage.getItem("vantage_ai_provider") || "gemini";
     const enableSearch = (aiProvider === "gemini");
 
@@ -5164,22 +4308,22 @@ Output ONLY a valid JSON object in this format (no markdown code fences, just ra
 
     let parsed = null;
     try {
-        let rawResponse = "";
-        if (APP.apiKey) {
-            rawResponse = await queryAI(promptText, true, enableSearch);
-        } else {
-            // Simulated fallback logic
-            await new Promise(r => setTimeout(r, 1800));
-            rawResponse = JSON.stringify(getMockAgentResponse(card));
+        const apiKey = localStorage.getItem("vantage_api_key") || (window.VANTAGE_CONFIG ? window.VANTAGE_CONFIG.GEMINI_API_KEY : "");
+        if (!apiKey) {
+            throw new Error("Gemini API key is not configured. Please add your key in Settings.");
         }
         
+        let rawResponse = await queryAI(promptText, true, enableSearch);
         parsed = sanitizeAndParseJSON(rawResponse);
     } catch (e) {
-        console.error("Agent execution API failed, falling back to mock:", e);
-        parsed = getMockAgentResponse(card);
+        console.error("Agent execution API failed:", e);
+        alert("AI Agent Execution Failed: " + e.message);
+        // Reset console back to Run button
+        toggleAIAgentConsoleVisibility(true, card);
+        return;
     }
 
-    // 4. Run through the logs step-by-step with typing simulation for visual quality
+    // 3. Run through the logs step-by-step with typing simulation for visual quality
     if (parsed && parsed.thoughtLogs) {
         statusText.textContent = "Agent: Executing plan & calling tools...";
         for (const log of parsed.thoughtLogs) {
@@ -5195,9 +4339,6 @@ Output ONLY a valid JSON object in this format (no markdown code fences, just ra
     addTrace("Proposal saved in pending state.");
 
     await new Promise(r => setTimeout(r, 500));
-    // Remove loader
-    const loaderEl = document.getElementById(loadId);
-    if (loaderEl) loaderEl.remove();
 
     // Store proposals on card
     card.ai_proposals = parsed.proposals || { description: card.description, context: card.context, checklist: [], files: [] };
@@ -5208,150 +4349,13 @@ Output ONLY a valid JSON object in this format (no markdown code fences, just ra
     logAuditTrail("agent_execution", `AI Agent completed tool executions and submitted proposals for card: "${card.title}"`);
     APP.save();
 
-    // Print completion bubble
-    chatBox.insertAdjacentHTML("beforeend", `
-        <div class="ai-message assistant">
-            <div class="message-bubble" style="border-left: 3px solid var(--accent-ai);">
-                <div style="display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.3rem;">
-                    <i data-lucide="sparkles" style="color: var(--accent-ai); width: 14px; height: 14px;"></i>
-                    <strong style="color: #fff;">Agent Execution Complete</strong>
-                </div>
-                <span>Proposals submitted! Review the proposed changes on the card's <strong>Overview</strong> tab and select Approve or Reject.</span>
-            </div>
-        </div>
-    `);
-    if (typeof lucide !== 'undefined' && lucide.createIcons) {
-        lucide.createIcons();
-    }
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    // Refresh UI
+    // Re-render
     renderKanbanBoard();
     renderDashboard();
-    
-    // Reload modal panels to show Proposal Review UI
     openCardModal(card.id);
 }
 
-function getMockAgentResponse(card) {
-    const titleLower = card.title.toLowerCase();
-    const isWrappers = titleLower.includes("wrapper") || titleLower.includes("packaging") || card.id === "card-1";
-    const isWholeFoods = titleLower.includes("buyer") || titleLower.includes("pitch") || card.id === "card-2";
-    const isStability = titleLower.includes("stability") || titleLower.includes("recipe") || card.id === "card-3";
-
-    if (isWrappers) {
-        return {
-            thoughtLogs: [
-                "Planning: Source compostable film suppliers, verify ASTM D6400 status, and draft outreach email.",
-                "Tool Call: web_search('ASTM D6400 compostable packaging films manufacturers USA')",
-                "Tool Call: read_webpage('https://www.futamuragroup.com/natureflex')",
-                "Tool Call: update_card_details('Description updated with NatureFlex specifications.')",
-                "Tool Call: update_checklist(['Request sample rolls from Futamura', 'Order ASTM certification copies', 'Execute heat-seal testing on R&D machine'])",
-                "Tool Call: generate_draft('Futamura_Outreach.md', 'Supplier query draft')",
-                "Verification: Proposed checklist captures all requested sub-tasks. Specifications verified."
-            ],
-            proposals: {
-                description: `Sourcing compostable packaging film. Based on research (May 2026), Futamura NatureFlex NK films match our MVTR requirement (less than 10g/m²/day) and are fully ASTM D6400 / EN 13432 certified. Recommended thickness: 23 microns.`,
-                context: `Aligns with FMCG sustainability roadmap. Ohio warehouse compliance requires compostable packaging. Sourced Futamura as primary supplier.`,
-                checklist: [
-                    "Request film sample rolls from Futamura Ohio rep",
-                    "Verify ASTM D6400 certification documents",
-                    "Configure packaging machine heat-seal jaws to 140°C",
-                    "Perform initial shelf-life test of citrus bars"
-                ],
-                files: [
-                    {
-                        name: "Futamura_Outreach_Email.md",
-                        content: `### ✉️ Supplier Outreach Draft: Futamura NatureFlex NK
-**To:** info.us@futamuragroup.com
-**Subject:** Sample Request: NatureFlex NK Films for FMCG Bar packaging
-
-Dear Futamura Sourcing Team,
-
-I am writing from Vantage FMCG. We are looking to source high-barrier compostable film rolls for our organic snack bar packaging line. 
-
-Could you please connect us with a regional sales representative in Ohio to coordinate sample rolls of your **NatureFlex NK (23 micron)** film? We would also require copies of your ASTM D6400 and EN 13432 certification sheets for our regulatory audit trail.
-
-Best regards,
-Vantage Sourcing Team`
-                    }
-                ]
-            }
-        };
-    } else if (isWholeFoods) {
-        return {
-            thoughtLogs: [
-                "Planning: Verify Whole Foods organic grocery listing dates, UNFI fees, and prepare distributor pitch deck draft.",
-                "Tool Call: web_search('Whole Foods organic grocery category review calendar 2026')",
-                "Tool Call: update_card_details('Description updated with regional review deadline.')",
-                "Tool Call: update_checklist(['Compile margin calculator sheet', 'Send sample kits to UNFI distribution center', 'Finalize sell sheet PDF'])",
-                "Tool Call: generate_draft('Whole_Foods_Sell_Sheet.md', 'Organic grocery pitch letter')",
-                "Verification: Schedule verified. Margin thresholds checked."
-            ],
-            proposals: {
-                description: `Coordinate category review submission for Whole Foods Market. The review window for refrigerated organic beverages closes in late June 2026. Pitch requires UNFI margin structure sheet.`,
-                context: `Strategic expansion into retail markets. Sourced Whole Foods category guidelines. Requires minimum 40% gross distributor margin.`,
-                checklist: [
-                    "Draft regional wholesale pricing matrix with 42% gross margin",
-                    "Register product listing in WFM Portal by June 10",
-                    "Assemble and ship sample kits to the WFM Midwest Buyer",
-                    "Schedule listing fee review with Finance department"
-                ],
-                files: [
-                    {
-                        name: "Whole_Foods_Pitch_Letter.md",
-                        content: `### ✉️ Retail Pitch Letter: Whole Foods Organic Beverage Category
-**Subject:** Category Submission: Premium Organic Citrus Juice Line (Vantage)
-
-Dear Category Merchant,
-
-Vantage is pleased to submit our new premium organic citrus juice line for the upcoming regional category review. 
-
-Key attributes:
-- **Clean Label**: HPP processed, 45-day refrigerated shelf life, strictly zero stabilizers or emulsifiers.
-- **Sustainability**: Packaged in 100% PHA compostable barrier wrappers.
-- **Commercial terms**: Accommodates 42.5% distributor gross margins (UNFI/KeHE aligned) with a planned 5% intro scan allowance.
-
-We look forward to sending sample kits for your evaluation.
-
-Sincerely,
-Vantage Sales Team`
-                    }
-                ]
-            }
-        };
-    } else {
-        return {
-            thoughtLogs: [
-                "Planning: Research standard suspension stabilizers or enzyme denaturation standards.",
-                "Tool Call: web_search('Citrus juice enzyme denaturation thermal parameters')",
-                "Tool Call: update_card_details('Description updated with pH parameters.')",
-                "Tool Call: update_checklist(['Calibrate pasteurizer heat sensors', 'Test pH iterations from 3.2 to 3.6', 'Audit cold-chain loggers'])",
-                "Verification: Target suspension stability criteria met."
-            ],
-            proposals: {
-                description: `Resolve suspension stability in citrus juice iterations. Enzyme denaturation is achieved at 85°C flash pasteurization. pH must be maintained below 3.5.`,
-                context: `R&D formulation requirement. Linked to shelf life standards for retail listings.`,
-                checklist: [
-                    "Perform enzyme activity assay on Citrus iteration #4",
-                    "Calibrate pH meters and adjust batch acidity to 3.4",
-                    "Run stability testing logs at Day 14 and Day 30",
-                    "Prepare sample report for the R&D director"
-                ],
-                files: [
-                    {
-                        name: "Stability_Testing_Protocol.md",
-                        content: `### 🔬 R&D Stability Protocol: Citrus suspension
-1. **Flash Pasteurization**: Heat batch to 85°C for exactly 15 seconds.
-2. **pH adjustment**: Titrate citric acid levels to target pH of 3.40.
-3. **Storage conditions**: Store bottles at 4.0°C +/- 0.5°C in darkness.
-4. **Sampling interval**: Draw samples at Day 1, 7, 14, 21, and 30 to log turbidity index.`
-                    }
-                ]
-            }
-        };
-    }
-}
+// Unused mock agent responses removed
 
 function approveAIAgentProposals(cardId) {
     const card = APP.cards.find(c => c.id === cardId);
@@ -5429,17 +4433,19 @@ function toggleAIAgentConsoleVisibility(visible, card) {
 
     if (visible) {
         consoleContainer.classList.remove("hide");
+        const keyConfigured = !!(localStorage.getItem("vantage_api_key") || (window.VANTAGE_CONFIG ? window.VANTAGE_CONFIG.GEMINI_API_KEY : ""));
         consoleContainer.innerHTML = `
             <div class="ai-agent-console-block glass" style="padding: 1rem; border-radius: 8px; border: 1px solid rgba(162,155,254,0.3); background: rgba(162,155,254,0.02); display: flex; flex-direction: column; gap: 0.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="agent-status-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #20bf6b; box-shadow: 0 0 6px #20bf6b;"></span>
+                        <span class="agent-status-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: ${keyConfigured ? '#20bf6b' : '#eb4d4b'}; box-shadow: 0 0 6px ${keyConfigured ? '#20bf6b' : '#eb4d4b'};"></span>
                         <strong style="font-size: 0.8rem; color: #fff;">AI Agent Mode Active</strong>
                     </div>
                     <span style="font-size: 0.65rem; color: #a29bfe; font-weight: 600; text-transform: uppercase; background: rgba(162, 155, 254, 0.1); padding: 1px 5px; border-radius: 3px;">Assignee</span>
                 </div>
                 <p style="font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; margin: 0;">Trigger an autonomous Agent loop to research web sources, build checklists, update specs, and compile outreach drafts.</p>
-                <button class="btn btn-primary btn-sm" id="btn-run-ai-agent" onclick="runAIAgentOnCard('${card.id}')" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%); margin-top: 0.25rem;">
+                ${!keyConfigured ? `<p style="font-size: 0.7rem; color: var(--prio-high); font-weight: 600; margin: 0; display: flex; align-items: center; gap: 0.25rem;"><i data-lucide="alert-circle" style="width: 12px; height: 12px;"></i> Gemini API Key is missing. Configure key in Settings to run.</p>` : ''}
+                <button class="btn btn-primary btn-sm" id="btn-run-ai-agent" onclick="runAIAgentOnCard('${card.id}')" ${!keyConfigured ? 'disabled style="opacity: 0.5; cursor: not-allowed; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: #555;"' : 'style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%); margin-top: 0.25rem;"'}>
                     <i data-lucide="play" style="width: 12px; height: 12px;"></i>
                     <span>Run AI Agent</span>
                 </button>

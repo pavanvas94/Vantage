@@ -733,6 +733,9 @@
                     <div class="modal-body-section">
                         <!-- TAB PANEL: OVERVIEW -->
                         <div class="tab-panel active" id="tab-overview">
+                            <!-- AI Agent Control Console (Visible when card is assigned to AI Agent) -->
+                            <div id="ai-agent-console-container" class="hide" style="margin-bottom: 1.25rem;"></div>
+
                             <!-- Proposal Review Board (Visible when awaiting_approval is true) -->
                             <div id="modal-card-proposal-board" class="hide" style="margin-bottom: 1.25rem;"></div>
 
@@ -842,97 +845,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Right Panel: AI Co-Pilot Console -->
-                <div class="modal-right ai-panel">
-                    <div class="ai-panel-header">
-                        <div class="ai-title-wrap">
-                            <i data-lucide="sparkles" class="ai-spark-icon"></i>
-                            <h3>Card Co-Pilot</h3>
-                        </div>
-                        <span class="badge badge-ai-mode" id="ai-mode-status-badge">Simulated Mode</span>
-                    </div>
-
-                    <!-- AI Agent Control Console (Visible when card is assigned to AI Agent) -->
-                    <div id="ai-agent-console-container" class="hide" style="margin-bottom: 0.75rem;"></div>
-
-                    <!-- AI Toolkits -->
-                    <div class="ai-toolkit-grid">
-                        <button class="ai-prompt-chip" data-prompt-type="blueprint">
-                            <i data-lucide="clipboard-list"></i>
-                            <span>Draft Execution Blueprint</span>
-                        </button>
-                        <button class="ai-prompt-chip" data-prompt-type="risk">
-                            <i data-lucide="shield-alert"></i>
-                            <span>Analyze Supply/Retail Risks</span>
-                        </button>
-                        <button class="ai-prompt-chip" data-prompt-type="content">
-                            <i data-lucide="pen-tool"></i>
-                            <span id="ai-content-button-label">Draft Copy/Brief</span>
-                        </button>
-                        <button class="ai-prompt-chip" data-prompt-type="pivot">
-                            <i data-lucide="git-branch"></i>
-                            <span>Suggest Pivot Plan</span>
-                        </button>
-                        <button class="ai-prompt-chip" data-prompt-type="research" style="background: linear-gradient(135deg, rgba(162, 155, 254, 0.12) 0%, rgba(108, 92, 231, 0.18) 100%); border: 1px solid rgba(162, 155, 254, 0.3); grid-column: span 2; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem;">
-                            <i data-lucide="globe" style="color: #a29bfe; width: 14px; height: 14px;"></i>
-                            <span style="font-weight: 600;">Activate Web Research Agent</span>
-                        </button>
-                    </div>
-
-                    <!-- Proactive AI Recommendations Box -->
-                    <div class="proactive-recommendations-wrapper glass hide" id="proactive-recommendations-wrapper">
-                        <div class="proactive-header" onclick="toggleProactiveRecommendations()" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
-                            <div style="display: flex; align-items: center; gap: 0.45rem;">
-                                <i data-lucide="sparkles" class="text-purple" style="width: 14px; height: 14px; animation: sparkGlow 1.5s infinite; color: #a29bfe;"></i>
-                                <h4 style="font-size: 0.8rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">Proactive Co-Pilot Insights</h4>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 0.45rem;">
-                                <button id="proactive-refresh-btn" class="btn-icon-sm" onclick="event.stopPropagation(); forceRegenerateInsights()" title="Force Refresh Insights" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; transition: color 0.2s;">
-                                    <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i>
-                                </button>
-                                <i data-lucide="chevron-down" id="proactive-chevron" style="width: 14px; height: 14px; color: var(--text-secondary); transition: transform 0.2s;"></i>
-                            </div>
-                        </div>
-                        
-                        <!-- Sleek Tab Menu for Insights -->
-                        <div class="proactive-tabs hide" id="proactive-tabs-container">
-                            <button class="proactive-tab-btn active" data-proactive-tab="overview" onclick="switchProactiveTab('overview')">
-                                <i data-lucide="sparkles" style="width: 11px; height: 11px;"></i>
-                                <span>Overview</span>
-                            </button>
-                            <button class="proactive-tab-btn" data-proactive-tab="subtasks" onclick="switchProactiveTab('subtasks')">
-                                <i data-lucide="check-square" style="width: 11px; height: 11px;"></i>
-                                <span>Subtasks</span>
-                            </button>
-                            <button class="proactive-tab-btn" data-proactive-tab="template" onclick="switchProactiveTab('template')">
-                                <i data-lucide="file-text" style="width: 11px; height: 11px;"></i>
-                                <span>Template</span>
-                            </button>
-                            <button class="proactive-tab-btn" data-proactive-tab="history" onclick="switchProactiveTab('history')">
-                                <i data-lucide="history" style="width: 11px; height: 11px;"></i>
-                                <span>History</span>
-                            </button>
-                        </div>
-                        
-                        <div class="proactive-body" id="proactive-recommendations-body">
-                            <!-- Filled dynamically by js/app.js -->
-                        </div>
-                    </div>
-
-                    <div class="ai-chat-output-container">
-                        <div class="ai-chat-history" id="ai-chat-history-box">
-                            <!-- Chat log -->
-                        </div>
-                    </div>
-
-                    <div class="ai-chat-input-row">
-                        <input type="text" id="ai-chat-input" placeholder="Ask Co-Pilot for blueprints, templates, code...">
-                        <button class="btn btn-primary" id="ai-chat-send-btn">
-                            <i data-lucide="send"></i>
-                        </button>
                     </div>
                 </div>
             </div>
