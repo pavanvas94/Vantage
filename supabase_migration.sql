@@ -60,14 +60,29 @@ AS $$
 $$;
 
 -- Create policies (Tenant-separated checks mapping auth.jwt() ->> 'email')
+DROP POLICY IF EXISTS "Allow select for members" ON public.vantage_members;
+DROP POLICY IF EXISTS "Allow insert for members" ON public.vantage_members;
+DROP POLICY IF EXISTS "Allow update for members" ON public.vantage_members;
+DROP POLICY IF EXISTS "Allow delete for members" ON public.vantage_members;
+
 CREATE POLICY "Allow select for members" ON public.vantage_members FOR SELECT USING (
     auth.jwt() ->> 'email' = workspace_owner 
     OR auth.jwt() ->> 'email' = email
+    OR invite_token IS NOT NULL
     OR public.is_workspace_member(workspace_owner)
 );
 CREATE POLICY "Allow insert for members" ON public.vantage_members FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = workspace_owner);
-CREATE POLICY "Allow update for members" ON public.vantage_members FOR UPDATE USING (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow update for members" ON public.vantage_members FOR UPDATE USING (
+    auth.jwt() ->> 'email' = workspace_owner 
+    OR auth.jwt() ->> 'email' = email
+    OR invite_token IS NOT NULL
+);
 CREATE POLICY "Allow delete for members" ON public.vantage_members FOR DELETE USING (auth.jwt() ->> 'email' = workspace_owner);
+
+DROP POLICY IF EXISTS "Allow select for notifications" ON public.vantage_notifications;
+DROP POLICY IF EXISTS "Allow insert for notifications" ON public.vantage_notifications;
+DROP POLICY IF EXISTS "Allow update for notifications" ON public.vantage_notifications;
+DROP POLICY IF EXISTS "Allow delete for notifications" ON public.vantage_notifications;
 
 CREATE POLICY "Allow select for notifications" ON public.vantage_notifications FOR SELECT USING (
     auth.jwt() ->> 'email' = workspace_owner 
@@ -105,6 +120,11 @@ CREATE TABLE IF NOT EXISTS public.vantage_cards (
 ALTER TABLE public.vantage_cards ENABLE ROW LEVEL SECURITY;
 
 -- Tenant-separated RLS policies for vantage_cards
+DROP POLICY IF EXISTS "Allow select for cards" ON public.vantage_cards;
+DROP POLICY IF EXISTS "Allow insert for cards" ON public.vantage_cards;
+DROP POLICY IF EXISTS "Allow update for cards" ON public.vantage_cards;
+DROP POLICY IF EXISTS "Allow delete for cards" ON public.vantage_cards;
+
 CREATE POLICY "Allow select for cards" ON public.vantage_cards FOR SELECT USING (
     auth.jwt() ->> 'email' = workspace_owner
     OR public.is_workspace_member(workspace_owner)
@@ -137,6 +157,9 @@ CREATE TABLE IF NOT EXISTS public.vantage_audit_logs (
 ALTER TABLE public.vantage_audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Immutable Append-Only RLS Policies (Select and Insert only, block Update and Delete)
+DROP POLICY IF EXISTS "Allow select for audit logs" ON public.vantage_audit_logs;
+DROP POLICY IF EXISTS "Allow insert for audit logs" ON public.vantage_audit_logs;
+
 CREATE POLICY "Allow select for audit logs" ON public.vantage_audit_logs FOR SELECT USING (auth.jwt() ->> 'email' = workspace_owner);
 CREATE POLICY "Allow insert for audit logs" ON public.vantage_audit_logs FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = workspace_owner OR auth.jwt() ->> 'email' = user_email);
 -- (NO UPDATE OR DELETE POLICIES CREATED FOR SECURITY COMPLIANCE)
@@ -153,33 +176,12 @@ ALTER TABLE public.vantage_members ADD COLUMN IF NOT EXISTS invite_expires_at TI
 
 -- Add RLS policy for anonymous invite token validation
 -- (Allows public/unauthenticated users to search for token details to unlock signup)
+DROP POLICY IF EXISTS "Allow public select for invite validation" ON public.vantage_members;
 CREATE POLICY "Allow public select for invite validation" 
 ON public.vantage_members 
 FOR SELECT 
 TO anon, authenticated
 USING (invite_token IS NOT NULL);
-
--- Drop previous select policy and replace with tenant separation + email check
-DROP POLICY IF EXISTS "Allow select for members" ON public.vantage_members;
-CREATE POLICY "Allow select for members" 
-ON public.vantage_members 
-FOR SELECT 
-USING (
-    auth.jwt() ->> 'email' = workspace_owner 
-    OR auth.jwt() ->> 'email' = email 
-    OR invite_token IS NOT NULL
-);
-
--- Drop previous update policy and allow members to self-update (status to active)
-DROP POLICY IF EXISTS "Allow update for members" ON public.vantage_members;
-CREATE POLICY "Allow update for members" 
-ON public.vantage_members 
-FOR UPDATE 
-USING (
-    auth.jwt() ->> 'email' = workspace_owner 
-    OR auth.jwt() ->> 'email' = email
-    OR invite_token IS NOT NULL
-);
 
 -- Enable Realtime replication for cards, members, and notifications
 -- Ensure publication exists
@@ -290,6 +292,11 @@ CREATE TABLE IF NOT EXISTS public.vantage_projects (
 ALTER TABLE public.vantage_projects ENABLE ROW LEVEL SECURITY;
 
 -- Policies for projects table
+DROP POLICY IF EXISTS "Allow select for projects" ON public.vantage_projects;
+DROP POLICY IF EXISTS "Allow insert for projects" ON public.vantage_projects;
+DROP POLICY IF EXISTS "Allow update for projects" ON public.vantage_projects;
+DROP POLICY IF EXISTS "Allow delete for projects" ON public.vantage_projects;
+
 CREATE POLICY "Allow select for projects" ON public.vantage_projects FOR SELECT USING (
     auth.jwt() ->> 'email' = workspace_owner 
     OR public.is_workspace_member(workspace_owner)
