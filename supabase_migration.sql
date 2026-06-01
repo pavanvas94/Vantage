@@ -31,15 +31,58 @@ CREATE TABLE IF NOT EXISTS public.vantage_notifications (
 ALTER TABLE public.vantage_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vantage_notifications ENABLE ROW LEVEL SECURITY;
 
+-- Helper functions for Row-Level Security checks (Security Definer to prevent recursion)
+CREATE OR REPLACE FUNCTION public.is_workspace_member(owner_email text)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.vantage_members 
+        WHERE workspace_owner = owner_email 
+          AND email = auth.jwt() ->> 'email' 
+          AND status = 'active'
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_member_permission(owner_email text)
+RETURNS text
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT permission_role FROM public.vantage_members 
+    WHERE workspace_owner = owner_email 
+      AND email = auth.jwt() ->> 'email' 
+      AND status = 'active'
+    LIMIT 1;
+$$;
+
 -- Create policies (Tenant-separated checks mapping auth.jwt() ->> 'email')
-CREATE POLICY "Allow select for members" ON public.vantage_members FOR SELECT USING (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow select for members" ON public.vantage_members FOR SELECT USING (
+    auth.jwt() ->> 'email' = workspace_owner 
+    OR auth.jwt() ->> 'email' = email
+    OR public.is_workspace_member(workspace_owner)
+);
 CREATE POLICY "Allow insert for members" ON public.vantage_members FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = workspace_owner);
 CREATE POLICY "Allow update for members" ON public.vantage_members FOR UPDATE USING (auth.jwt() ->> 'email' = workspace_owner);
 CREATE POLICY "Allow delete for members" ON public.vantage_members FOR DELETE USING (auth.jwt() ->> 'email' = workspace_owner);
 
-CREATE POLICY "Allow select for notifications" ON public.vantage_notifications FOR SELECT USING (auth.jwt() ->> 'email' = workspace_owner OR auth.jwt() ->> 'email' = recipient_email);
-CREATE POLICY "Allow insert for notifications" ON public.vantage_notifications FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = workspace_owner);
-CREATE POLICY "Allow update for notifications" ON public.vantage_notifications FOR UPDATE USING (auth.jwt() ->> 'email' = workspace_owner OR auth.jwt() ->> 'email' = recipient_email);
+CREATE POLICY "Allow select for notifications" ON public.vantage_notifications FOR SELECT USING (
+    auth.jwt() ->> 'email' = workspace_owner 
+    OR auth.jwt() ->> 'email' = recipient_email
+    OR public.is_workspace_member(workspace_owner)
+);
+CREATE POLICY "Allow insert for notifications" ON public.vantage_notifications FOR INSERT WITH CHECK (
+    auth.jwt() ->> 'email' = workspace_owner 
+    OR public.get_member_permission(workspace_owner) = 'contributor'
+);
+CREATE POLICY "Allow update for notifications" ON public.vantage_notifications FOR UPDATE USING (
+    auth.jwt() ->> 'email' = workspace_owner 
+    OR auth.jwt() ->> 'email' = recipient_email
+    OR public.get_member_permission(workspace_owner) = 'contributor'
+);
 CREATE POLICY "Allow delete for notifications" ON public.vantage_notifications FOR DELETE USING (auth.jwt() ->> 'email' = workspace_owner);
 
 -- Enable Realtime replication for notifications
@@ -62,10 +105,22 @@ CREATE TABLE IF NOT EXISTS public.vantage_cards (
 ALTER TABLE public.vantage_cards ENABLE ROW LEVEL SECURITY;
 
 -- Tenant-separated RLS policies for vantage_cards
-CREATE POLICY "Allow select for cards" ON public.vantage_cards FOR SELECT USING (auth.jwt() ->> 'email' = workspace_owner);
-CREATE POLICY "Allow insert for cards" ON public.vantage_cards FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = workspace_owner);
-CREATE POLICY "Allow update for cards" ON public.vantage_cards FOR UPDATE USING (auth.jwt() ->> 'email' = workspace_owner);
-CREATE POLICY "Allow delete for cards" ON public.vantage_cards FOR DELETE USING (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow select for cards" ON public.vantage_cards FOR SELECT USING (
+    auth.jwt() ->> 'email' = workspace_owner
+    OR public.is_workspace_member(workspace_owner)
+);
+CREATE POLICY "Allow insert for cards" ON public.vantage_cards FOR INSERT WITH CHECK (
+    auth.jwt() ->> 'email' = workspace_owner
+    OR public.get_member_permission(workspace_owner) = 'contributor'
+);
+CREATE POLICY "Allow update for cards" ON public.vantage_cards FOR UPDATE USING (
+    auth.jwt() ->> 'email' = workspace_owner
+    OR public.get_member_permission(workspace_owner) = 'contributor'
+);
+CREATE POLICY "Allow delete for cards" ON public.vantage_cards FOR DELETE USING (
+    auth.jwt() ->> 'email' = workspace_owner
+    OR public.get_member_permission(workspace_owner) = 'contributor'
+);
 
 -- 5. Create vantage_audit_logs table to record immutable security operations
 CREATE TABLE IF NOT EXISTS public.vantage_audit_logs (
@@ -215,4 +270,44 @@ $$;
 
 -- Allow anonymous and authenticated public client users to invoke this RPC function
 GRANT EXECUTE ON FUNCTION public.get_global_stats() TO anon, authenticated;
+
+
+-- ===================================================================
+-- 8. Projects Management
+-- ===================================================================
+
+CREATE TABLE IF NOT EXISTS public.vantage_projects (
+    id TEXT PRIMARY KEY,                    -- Unique project ID (e.g. UUID or slug)
+    workspace_owner TEXT NOT NULL,          -- Owner's email address
+    name TEXT NOT NULL,                     -- Project Name
+    industry TEXT NOT NULL,                 -- e.g. 'fmcg', 'tech', 'general', 'custom'
+    gemini_api_key TEXT,                    -- Project-specific Gemini API Key (BYOK)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(workspace_owner, name)
+);
+
+-- Enable RLS
+ALTER TABLE public.vantage_projects ENABLE ROW LEVEL SECURITY;
+
+-- Policies for projects table
+CREATE POLICY "Allow select for projects" ON public.vantage_projects FOR SELECT USING (
+    auth.jwt() ->> 'email' = workspace_owner 
+    OR public.is_workspace_member(workspace_owner)
+);
+CREATE POLICY "Allow insert for projects" ON public.vantage_projects FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow update for projects" ON public.vantage_projects FOR UPDATE USING (auth.jwt() ->> 'email' = workspace_owner);
+CREATE POLICY "Allow delete for projects" ON public.vantage_projects FOR DELETE USING (auth.jwt() ->> 'email' = workspace_owner);
+
+-- Add to Realtime publication
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_rel pr 
+        JOIN pg_class c ON pr.prrelid = c.oid 
+        JOIN pg_publication p ON pr.prpubid = p.oid 
+        WHERE p.pubname = 'supabase_realtime' AND c.relname = 'vantage_projects'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.vantage_projects;
+    END IF;
+END $$;
 

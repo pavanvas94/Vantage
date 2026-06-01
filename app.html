@@ -506,55 +506,21 @@
                         </div>
                     </div>
 
-                    <!-- Dynamic Database Connection Panel (BYODB) -->
+                    <!-- Database Connection Sync (BYODB) -->
                     <div class="settings-card glass">
                         <div class="settings-header">
                             <i data-lucide="database"></i>
-                            <h3>Database Connection Sync (BYODB)</h3>
+                            <h3>Database Connection Sync</h3>
                         </div>
                         <div class="settings-body">
                             <div class="settings-group">
-                                <label for="settings-db-provider">Database Provider</label>
-                                <select id="settings-db-provider" class="form-control">
-                                    <option value="local">Local Sandbox (Offline Storage)</option>
-                                    <option value="supabase">Supabase BaaS</option>
-                                    <option value="firebase">Firebase Firestore REST</option>
-                                    <option value="pocketbase">PocketBase Server REST</option>
-                                </select>
+                                <label for="settings-supabase-url">Supabase Project URL</label>
+                                <input type="text" id="settings-supabase-url" class="form-control" placeholder="https://yourproject.supabase.co">
                             </div>
-                            
-                            <!-- Supabase fields -->
-                            <div id="settings-db-fields-supabase" class="db-fields-panel hide">
-                                <div class="settings-group">
-                                    <label for="settings-supabase-url">Supabase Project URL</label>
-                                    <input type="text" id="settings-supabase-url" class="form-control" placeholder="https://yourproject.supabase.co">
-                                </div>
-                                <div class="settings-group">
-                                    <label for="settings-supabase-key">Supabase Anon Key</label>
-                                    <input type="password" id="settings-supabase-key" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-                                </div>
+                            <div class="settings-group">
+                                <label for="settings-supabase-key">Supabase Anon Key</label>
+                                <input type="password" id="settings-supabase-key" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
                             </div>
-                            
-                            <!-- Firebase fields -->
-                            <div id="settings-db-fields-firebase" class="db-fields-panel hide">
-                                <div class="settings-group">
-                                    <label for="settings-firebase-project">Firebase Project ID</label>
-                                    <input type="text" id="settings-firebase-project" class="form-control" placeholder="vantage-workspace-123">
-                                </div>
-                                <div class="settings-group">
-                                    <label for="settings-firebase-key">Web API Key (Optional)</label>
-                                    <input type="password" id="settings-firebase-key" class="form-control" placeholder="AIzaSy...">
-                                </div>
-                            </div>
-                            
-                            <!-- PocketBase fields -->
-                            <div id="settings-db-fields-pocketbase" class="db-fields-panel hide">
-                                <div class="settings-group">
-                                    <label for="settings-pocketbase-url">PocketBase URL</label>
-                                    <input type="text" id="settings-pocketbase-url" class="form-control" placeholder="http://127.0.0.1:8090">
-                                </div>
-                            </div>
-                            
                             <div class="settings-group" style="flex-direction: row; gap: 0.5rem; align-items: center; margin-top: 1rem;">
                                 <button class="btn btn-primary" id="save-db-settings-btn">Connect Database</button>
                                 <span id="db-save-success" class="settings-feedback text-green hide">Connected!</span>
@@ -562,7 +528,7 @@
                         </div>
                     </div>
 
-                    <!-- Dynamic AI Configurations Panel (BYOK) -->
+                    <!-- AI Configurations Panel (BYOK) -->
                     <div class="settings-card glass">
                         <div class="settings-header">
                             <i data-lucide="sparkles"></i>
@@ -570,52 +536,9 @@
                         </div>
                         <div class="settings-body">
                             <div class="settings-group">
-                                <label for="settings-ai-provider">AI Provider</label>
-                                <select id="settings-ai-provider" class="form-control">
-                                    <option value="gemini">Google Gemini</option>
-                                    <option value="openai">OpenAI ChatGPT</option>
-                                    <option value="anthropic">Anthropic Claude</option>
-                                </select>
+                                <label for="settings-gemini-key">Gemini API Key</label>
+                                <input type="password" id="settings-gemini-key" class="form-control" placeholder="AIzaSy...">
                             </div>
-                            
-                            <!-- Gemini fields -->
-                            <div id="settings-ai-fields-gemini" class="ai-fields-panel hide">
-                                <div class="settings-group">
-                                    <label for="settings-gemini-key">Gemini API Key</label>
-                                    <input type="password" id="settings-gemini-key" class="form-control" placeholder="AIzaSy...">
-                                </div>
-                            </div>
-                            
-                            <!-- OpenAI fields -->
-                            <div id="settings-ai-fields-openai" class="ai-fields-panel hide">
-                                <div class="settings-group">
-                                    <label for="settings-openai-key">OpenAI API Key</label>
-                                    <input type="password" id="settings-openai-key" class="form-control" placeholder="sk-proj-...">
-                                </div>
-                                <div class="settings-group">
-                                    <label for="settings-openai-model">OpenAI Model</label>
-                                    <select id="settings-openai-model" class="form-control">
-                                        <option value="gpt-4o-mini">gpt-4o-mini (Faster)</option>
-                                        <option value="gpt-4o">gpt-4o (Powerful)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <!-- Anthropic fields -->
-                            <div id="settings-ai-fields-anthropic" class="ai-fields-panel hide">
-                                <div class="settings-group">
-                                    <label for="settings-anthropic-key">Anthropic API Key</label>
-                                    <input type="password" id="settings-anthropic-key" class="form-control" placeholder="sk-ant-...">
-                                </div>
-                                <div class="settings-group">
-                                    <label for="settings-anthropic-model">Claude Model</label>
-                                    <select id="settings-anthropic-model" class="form-control">
-                                        <option value="claude-3-5-sonnet-20240620">claude-3-5-sonnet</option>
-                                        <option value="claude-3-haiku-20240307">claude-3-haiku</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
                             <div class="settings-group" style="margin-top: 1rem;">
                                 <button class="btn btn-secondary" id="save-ai-settings-btn">Save Key</button>
                                 <span id="ai-save-success" class="settings-feedback text-green hide">Key saved!</span>
@@ -921,6 +844,85 @@
             </div>
         </div>
     </div>
+
+    <!-- Onboarding / Project Setup Overlay -->
+    <div id="onboarding-overlay" class="onboarding-overlay hide" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 99999; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at center, #18182b 0%, #0a0a14 100%); backdrop-filter: blur(20px);">
+        <div class="onboarding-card glass" style="width: 580px; max-width: 90%; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 2.5rem; box-shadow: 0 15px 35px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 1.5rem;">
+            <div style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                <div style="width: 52px; height: 52px; background: linear-gradient(135deg, var(--primary) 0%, #a29bfe 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 0 20px var(--primary-glow); margin-bottom: 0.5rem;">
+                    <i data-lucide="compass" style="width: 28px; height: 28px; animation: spin 4s linear infinite;"></i>
+                </div>
+                <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.75rem; font-weight: 700; color: #fff; margin: 0;">Welcome to Vantage</h2>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); margin: 0; line-height: 1.5;">To unlock your Progression Hub, initialize your first project workspace and configure your AI coordinates.</p>
+            </div>
+            
+            <form id="onboarding-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                    <label for="onboarding-project-name" style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">Project Workspace Name</label>
+                    <input type="text" id="onboarding-project-name" class="form-control" placeholder="e.g. Project Alpha Launch" required style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); padding: 0.6rem 1rem; border-radius: var(--radius-sm); color: #fff;">
+                </div>
+                
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">Select Industry Domain</label>
+                    <span style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.3;">Loads pre-configured departments, team roles, and initial execution cards.</span>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-top: 0.25rem;">
+                        <label class="preset-card-label" style="cursor: pointer; position: relative;">
+                            <input type="radio" name="onboarding-preset" value="fmcg" checked style="position: absolute; opacity: 0; width: 0; height: 0;">
+                            <div class="preset-card-inner" style="padding: 0.85rem; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: rgba(255,255,255,0.01); text-align: center; transition: all 0.2s;">
+                                <i data-lucide="shopping-bag" style="width: 20px; height: 20px; color: #a29bfe; margin-bottom: 0.25rem;"></i>
+                                <div style="font-weight: 600; font-size: 0.8rem; color: #fff;">FMCG Presets</div>
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">Formulations, supply chain</span>
+                            </div>
+                        </label>
+                        <label class="preset-card-label" style="cursor: pointer; position: relative;">
+                            <input type="radio" name="onboarding-preset" value="tech" style="position: absolute; opacity: 0; width: 0; height: 0;">
+                            <div class="preset-card-inner" style="padding: 0.85rem; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: rgba(255,255,255,0.01); text-align: center; transition: all 0.2s;">
+                                <i data-lucide="cpu" style="width: 20px; height: 20px; color: #a29bfe; margin-bottom: 0.25rem;"></i>
+                                <div style="font-weight: 600; font-size: 0.8rem; color: #fff;">Tech Startup</div>
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">Sprints, UX, dev engineers</span>
+                            </div>
+                        </label>
+                        <label class="preset-card-label" style="cursor: pointer; position: relative;">
+                            <input type="radio" name="onboarding-preset" value="general" style="position: absolute; opacity: 0; width: 0; height: 0;">
+                            <div class="preset-card-inner" style="padding: 0.85rem; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: rgba(255,255,255,0.01); text-align: center; transition: all 0.2s;">
+                                <i data-lucide="briefcase" style="width: 20px; height: 20px; color: #a29bfe; margin-bottom: 0.25rem;"></i>
+                                <div style="font-weight: 600; font-size: 0.8rem; color: #fff;">General Business</div>
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">Finance, ops, HR, marketing</span>
+                            </div>
+                        </label>
+                        <label class="preset-card-label" style="cursor: pointer; position: relative;">
+                            <input type="radio" name="onboarding-preset" value="custom" style="position: absolute; opacity: 0; width: 0; height: 0;">
+                            <div class="preset-card-inner" style="padding: 0.85rem; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: rgba(255,255,255,0.01); text-align: center; transition: all 0.2s;">
+                                <i data-lucide="layers" style="width: 20px; height: 20px; color: #a29bfe; margin-bottom: 0.25rem;"></i>
+                                <div style="font-weight: 600; font-size: 0.8rem; color: #fff;">Blank Slate</div>
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">Completely empty canvas</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                    <label for="onboarding-api-key" style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">Google Gemini API Key (BYOK)</label>
+                    <span style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; margin-bottom: 0.1rem;">Mandatory key used to power active AI Agent research, outline checklists, and write drafts. Shared automatically with your invited team.</span>
+                    <input type="password" id="onboarding-api-key" class="form-control" placeholder="AIzaSy..." required style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); padding: 0.6rem 1rem; border-radius: var(--radius-sm); color: #fff;">
+                </div>
+                
+                <button type="submit" id="onboarding-submit-btn" class="btn btn-primary btn-block" style="background: var(--primary); color: #fff; padding: 0.7rem; font-size: 0.9rem; border-radius: var(--radius-md); font-weight: 700; cursor: pointer; border: none; margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <i data-lucide="play" style="width: 14px; height: 14px;"></i>
+                    <span>Launch Project Workspace</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <style>
+        .preset-card-label input[type="radio"]:checked + .preset-card-inner {
+            border-color: var(--primary) !important;
+            background: rgba(108, 92, 231, 0.08) !important;
+            box-shadow: 0 0 10px rgba(108, 92, 231, 0.2);
+        }
+    </style>
 
     <!-- Organic Gooey Filter SVG overlay definition -->
     <svg xmlns="http://www.w3.org/2000/svg" version="1.1" style="display: none;">

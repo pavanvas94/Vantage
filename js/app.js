@@ -345,23 +345,17 @@ async function dispatchWebhookNotification(cardTitle, eventType, details) {
 class VantageState {
     constructor() {
         this.industry = localStorage.getItem("vantage_industry") || "general";
+        this.currentProjectId = localStorage.getItem("vantage_active_project_id") || this.industry;
+        this.projects = [];
         
         const config = window.VANTAGE_CONFIG || {};
-        this.dbProvider = localStorage.getItem("vantage_db_provider") || "local";
+        this.dbProvider = "supabase"; // strictly Supabase
         this.supabaseUrl = localStorage.getItem("vantage_supabase_url") || config.SUPABASE_URL || "";
         this.supabaseAnonKey = localStorage.getItem("vantage_supabase_anon_key") || config.SUPABASE_ANON_KEY || "";
         this.supabase = initSupabase(this.supabaseUrl, this.supabaseAnonKey);
 
-        this.firebaseProjectId = localStorage.getItem("vantage_firebase_project_id") || "";
-        this.firebaseApiKey = localStorage.getItem("vantage_firebase_api_key") || "";
-        this.pocketbaseUrl = localStorage.getItem("vantage_pocketbase_url") || "";
-
-        this.aiProvider = localStorage.getItem("vantage_ai_provider") || "gemini";
+        this.aiProvider = "gemini"; // strictly Gemini
         this.apiKey = localStorage.getItem("vantage_api_key") || config.GEMINI_API_KEY || "";
-        this.openaiKey = localStorage.getItem("vantage_openai_key") || "";
-        this.openaiModel = localStorage.getItem("vantage_openai_model") || "gpt-4o-mini";
-        this.anthropicKey = localStorage.getItem("vantage_anthropic_key") || "";
-        this.anthropicModel = localStorage.getItem("vantage_anthropic_model") || "claude-3-5-sonnet-20240620";
 
         // Load card data
         const savedData = localStorage.getItem("vantage_workspace_data");
@@ -458,11 +452,12 @@ class VantageState {
             if (parent) parentWorkspace = parent.workspace_id;
         }
         
+        const activeProjId = localStorage.getItem("vantage_active_project_id") || this.industry;
         const defaultDept = Object.keys(INDUSTRY_PRESETS[this.industry]?.departments || {})[0] || "ops";
         const newCard = {
             id,
             parentId: cardData.parentId || null,
-            workspace_id: cardData.workspace_id || parentWorkspace || this.industry,
+            workspace_id: cardData.workspace_id || parentWorkspace || activeProjId,
             title: cardData.title || "Untitled Card",
             description: cardData.description || "",
             context: cardData.context || "",
@@ -640,9 +635,199 @@ class VantageState {
         return "General/Unassigned";
     }
 
+    async checkOnboardingAndProjects() {
+        if (!this.supabase) {
+            const localProjSetup = localStorage.getItem("vantage_project_setup");
+            if (localProjSetup !== "true") {
+                this.showOnboardingOverlay(true);
+            } else {
+                this.showOnboardingOverlay(false);
+            }
+            return;
+        }
+
+        try {
+            const userEmail = localStorage.getItem("vantage_user_email");
+            if (!userEmail) return;
+
+            const owners = [userEmail];
+            const { data: memberRecords, error: memberErr } = await this.supabase
+                .from("vantage_members")
+                .select("workspace_owner")
+                .eq("email", userEmail)
+                .eq("status", "active");
+
+            if (!memberErr && memberRecords) {
+                memberRecords.forEach(r => {
+                    if (!owners.includes(r.workspace_owner)) owners.push(r.workspace_owner);
+                });
+            }
+
+            const { data: projects, error: projErr } = await this.supabase
+                .from("vantage_projects")
+                .select("*")
+                .in("workspace_owner", owners);
+
+            if (projErr) {
+                console.warn("vantage_projects query failed. Running in offline/fallback mode:", projErr.message);
+                const localProjSetup = localStorage.getItem("vantage_project_setup");
+                if (localProjSetup !== "true") {
+                    this.showOnboardingOverlay(true);
+                } else {
+                    this.showOnboardingOverlay(false);
+                }
+                return;
+            }
+
+            if (projects && projects.length > 0) {
+                this.showOnboardingOverlay(false);
+                this.projects = projects;
+                
+                const dropdown = document.getElementById("workspace-selector-dropdown");
+                if (dropdown) {
+                    dropdown.innerHTML = "";
+                    projects.forEach(p => {
+                        const opt = document.createElement("option");
+                        opt.value = p.id;
+                        opt.textContent = p.name;
+                        dropdown.appendChild(opt);
+                    });
+                    
+                    const createOpt = document.createElement("option");
+                    createOpt.value = "+create_project";
+                    createOpt.textContent = "+ Create New Project";
+                    dropdown.appendChild(createOpt);
+                    
+                    let activeProjId = localStorage.getItem("vantage_active_project_id");
+                    if (!activeProjId || !projects.some(p => p.id === activeProjId)) {
+                        activeProjId = projects[0].id;
+                        localStorage.setItem("vantage_active_project_id", activeProjId);
+                    }
+                    dropdown.value = activeProjId;
+                    
+                    const activeProj = projects.find(p => p.id === activeProjId);
+                    if (activeProj) {
+                        this.industry = activeProj.industry;
+                        this.apiKey = activeProj.gemini_api_key || "";
+                        localStorage.setItem("vantage_api_key", this.apiKey);
+                        localStorage.setItem("vantage_industry", this.industry);
+                    }
+                }
+            } else {
+                this.showOnboardingOverlay(true);
+            }
+        } catch (e) {
+            console.error("Failed to check projects status:", e);
+            this.showOnboardingOverlay(true);
+        }
+    }
+
+    showOnboardingOverlay(show) {
+        const overlay = document.getElementById("onboarding-overlay");
+        const container = document.querySelector(".app-container");
+        if (overlay) {
+            if (show) {
+                overlay.classList.remove("hide");
+                if (container) container.style.display = "none";
+            } else {
+                overlay.classList.add("hide");
+                if (container) container.style.display = "flex";
+            }
+        }
+    }
+
+    async initializeWorkspace(name, industry, apiKey) {
+        const userEmail = localStorage.getItem("vantage_user_email") || "local-sandbox";
+        const projectId = "proj-" + generateUUID();
+
+        const newProject = {
+            id: projectId,
+            workspace_owner: userEmail,
+            name: name,
+            industry: industry,
+            gemini_api_key: apiKey,
+            created_at: new Date().toISOString()
+        };
+
+        let localProjects = [];
+        try {
+            localProjects = JSON.parse(localStorage.getItem("vantage_local_projects") || "[]");
+        } catch(e) {}
+        localProjects.push(newProject);
+        localStorage.setItem("vantage_local_projects", JSON.stringify(localProjects));
+        localStorage.setItem("vantage_project_setup", "true");
+        localStorage.setItem("vantage_active_project_id", projectId);
+        localStorage.setItem("vantage_api_key", apiKey);
+        localStorage.setItem("vantage_industry", industry);
+
+        this.industry = industry;
+        this.apiKey = apiKey;
+
+        if (this.supabase) {
+            try {
+                const { error: projErr } = await this.supabase
+                    .from("vantage_projects")
+                    .insert([newProject]);
+                if (projErr) console.error("Failed to save project to Supabase:", projErr.message);
+
+                const presetCards = INDUSTRY_PRESETS[industry]?.defaultCards || [];
+                const cardsToSeed = presetCards.map(c => ({
+                    ...c,
+                    workspace_id: projectId
+                }));
+
+                const { error: cardsErr } = await this.supabase
+                    .from("vantage_cards")
+                    .upsert(
+                        cardsToSeed.map(c => ({
+                            id: c.id,
+                            workspace_owner: userEmail,
+                            data: c,
+                            updated_at: new Date()
+                        }))
+                    );
+                if (cardsErr) console.error("Failed to seed default cards to Supabase:", cardsErr.message);
+
+                const defaultMembers = [
+                    { workspace_owner: userEmail, name: "Priya", role: "ops", status: "active", email: "priya@vantage-team.com", permission_role: "contributor" },
+                    { workspace_owner: userEmail, name: "Raj", role: "sales", status: "active", email: "raj@vantage-team.com", permission_role: "contributor" },
+                    { workspace_owner: userEmail, name: "Deepak", role: "rd", status: "active", email: "deepak@vantage-team.com", permission_role: "contributor" },
+                    { workspace_owner: userEmail, name: "Sam", role: "finance", status: "active", email: "sam@vantage-team.com", permission_role: "reader" }
+                ];
+                await this.supabase.from("vantage_members").insert(defaultMembers);
+
+            } catch (err) {
+                console.error("Supabase project sync failed:", err);
+            }
+        } else {
+            const presetCards = INDUSTRY_PRESETS[industry]?.defaultCards || [];
+            const cardsToSeed = presetCards.map(c => ({
+                ...c,
+                workspace_id: projectId
+            }));
+            this.cards.push(...cardsToSeed);
+            localStorage.setItem("vantage_workspace_data", JSON.stringify(this.cards));
+        }
+
+        this.addHeritageLog("System", `Initialized project workspace: "${name}"`, "System");
+
+        alert(`Workspace "${name}" successfully initialized!`);
+        this.showOnboardingOverlay(false);
+        
+        await this.checkOnboardingAndProjects();
+        await this.pullFromDatabase();
+        
+        renderKanbanBoard();
+        renderDashboard();
+        renderActiveView();
+        
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+            lucide.createIcons();
+        }
+    }
+
     syncToDatabase() {
-        const dbProvider = localStorage.getItem("vantage_db_provider") || "local";
-        if (dbProvider === "local") return;
+        if (!this.supabase) return;
 
         if (this.syncTimeout) clearTimeout(this.syncTimeout);
         
@@ -650,66 +835,29 @@ class VantageState {
             try {
                 const userEmail = localStorage.getItem("vantage_user_email") || "local-sandbox";
                 
-                if (dbProvider === "supabase" && this.supabase) {
-                    const { error } = await this.supabase
-                        .from('vantage_cards')
-                        .upsert(
-                            this.cards.map(c => ({
-                                id: c.id,
-                                workspace_owner: userEmail,
-                                data: c,
-                                updated_at: new Date()
-                            }))
-                        );
-                    if (error) console.error("Supabase Database Sync Failed:", error.message);
-                } else if (dbProvider === "firebase") {
-                    const projectId = localStorage.getItem("vantage_firebase_project_id");
-                    if (projectId) {
-                        for (const card of this.cards) {
-                            const fsBody = {
-                                fields: {
-                                    workspace_owner: { stringValue: userEmail },
-                                    data: { stringValue: JSON.stringify(card) },
-                                    updated_at: { stringValue: new Date().toISOString() }
-                                }
-                            };
-                            await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/cards/${encodeURIComponent(card.id)}`, {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(fsBody)
-                            });
-                        }
-                    }
-                } else if (dbProvider === "pocketbase") {
-                    const pbUrl = localStorage.getItem("vantage_pocketbase_url");
-                    if (pbUrl) {
-                        for (const card of this.cards) {
-                            const pbId = card.id.replace(/[^a-zA-Z0-9_]/g, "").substring(0, 15);
-                            const bodyData = {
-                                id: pbId,
-                                card_id: card.id,
-                                workspace_owner: userEmail,
-                                data: JSON.stringify(card),
-                                updated_at: new Date().toISOString()
-                            };
-                            
-                            const checkResp = await fetch(`${pbUrl}/api/collections/vantage_cards/records/${pbId}`);
-                            if (checkResp.ok) {
-                                await fetch(`${pbUrl}/api/collections/vantage_cards/records/${pbId}`, {
-                                    method: "PATCH",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify(bodyData)
-                                });
-                            } else {
-                                await fetch(`${pbUrl}/api/collections/vantage_cards/records`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify(bodyData)
-                                });
-                            }
-                        }
-                    }
+                let ownerEmail = userEmail;
+                const { data: memberRec } = await this.supabase
+                    .from("vantage_members")
+                    .select("workspace_owner")
+                    .eq("email", userEmail)
+                    .eq("status", "active")
+                    .maybeSingle();
+                
+                if (memberRec) {
+                    ownerEmail = memberRec.workspace_owner;
                 }
+
+                const { error } = await this.supabase
+                    .from('vantage_cards')
+                    .upsert(
+                        this.cards.map(c => ({
+                            id: c.id,
+                            workspace_owner: ownerEmail,
+                            data: c,
+                            updated_at: new Date()
+                        }))
+                    );
+                if (error) console.error("Supabase Database Sync Failed:", error.message);
             } catch (e) {
                 console.error("Database sync request error:", e);
             }
@@ -717,81 +865,45 @@ class VantageState {
     }
 
     async pullFromDatabase() {
-        const dbProvider = localStorage.getItem("vantage_db_provider") || "local";
-        if (dbProvider === "local") return;
+        if (!this.supabase) return;
 
         try {
             const userEmail = localStorage.getItem("vantage_user_email");
             if (!userEmail) return;
 
-            if (dbProvider === "supabase" && this.supabase) {
-                const { data, error } = await this.supabase
-                    .from('vantage_cards')
-                    .select('data')
-                    .eq('workspace_owner', userEmail);
-                
-                if (error) {
-                    console.error("Failed to pull from Supabase:", error.message);
-                } else if (data && data.length > 0) {
-                    this.cards = data.map(item => {
-                        const card = item.data;
-                        if (!card.workspace_id) {
-                            if (card.id.startsWith("card-g")) card.workspace_id = "general";
-                            else if (card.id.startsWith("card-t")) card.workspace_id = "tech";
-                            else card.workspace_id = "fmcg";
-                        }
-                        return card;
-                    });
-                    localStorage.setItem("vantage_workspace_data", JSON.stringify(this.cards));
-                } else {
-                    console.log("No card data found in Supabase. Seeding defaults...");
-                    this.resetToPreset(this.industry);
-                }
-            } else if (dbProvider === "firebase") {
-                const projectId = localStorage.getItem("vantage_firebase_project_id");
-                if (projectId) {
-                    const resp = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/cards?pageSize=100`);
-                    if (resp.ok) {
-                        const resJson = await resp.json();
-                        if (resJson.documents) {
-                            const matchedCards = [];
-                            resJson.documents.forEach(d => {
-                                const fields = d.fields;
-                                if (fields && fields.workspace_owner && fields.workspace_owner.stringValue === userEmail) {
-                                    try {
-                                        matchedCards.push(JSON.parse(fields.data.stringValue));
-                                    } catch(err) {}
-                                }
-                            });
-                            if (matchedCards.length > 0) {
-                                this.cards = matchedCards;
-                                localStorage.setItem("vantage_workspace_data", JSON.stringify(this.cards));
-                            }
-                        }
+            let ownerEmail = userEmail;
+            const { data: memberRec } = await this.supabase
+                .from("vantage_members")
+                .select("workspace_owner")
+                .eq("email", userEmail)
+                .eq("status", "active")
+                .maybeSingle();
+            
+            if (memberRec) {
+                ownerEmail = memberRec.workspace_owner;
+            }
+
+            const { data, error } = await this.supabase
+                .from('vantage_cards')
+                .select('data')
+                .eq('workspace_owner', ownerEmail);
+            
+            if (error) {
+                console.error("Failed to pull from Supabase:", error.message);
+            } else if (data && data.length > 0) {
+                this.cards = data.map(item => {
+                    const card = item.data;
+                    if (!card.workspace_id) {
+                        if (card.id.startsWith("card-g")) card.workspace_id = "general";
+                        else if (card.id.startsWith("card-t")) card.workspace_id = "tech";
+                        else card.workspace_id = "fmcg";
                     }
-                }
-            } else if (dbProvider === "pocketbase") {
-                const pbUrl = localStorage.getItem("vantage_pocketbase_url");
-                if (pbUrl) {
-                    const resp = await fetch(`${pbUrl}/api/collections/vantage_cards/records?limit=100`);
-                    if (resp.ok) {
-                        const resJson = await resp.json();
-                        if (resJson.items) {
-                            const matchedCards = [];
-                            resJson.items.forEach(item => {
-                                if (item.workspace_owner === userEmail) {
-                                    try {
-                                        matchedCards.push(JSON.parse(item.data));
-                                    } catch(err) {}
-                                }
-                            });
-                            if (matchedCards.length > 0) {
-                                this.cards = matchedCards;
-                                localStorage.setItem("vantage_workspace_data", JSON.stringify(this.cards));
-                            }
-                        }
-                    }
-                }
+                    return card;
+                });
+                localStorage.setItem("vantage_workspace_data", JSON.stringify(this.cards));
+            } else {
+                console.log("No card data found in Supabase. Seeding defaults...");
+                this.resetToPreset(this.industry);
             }
         } catch (e) {
             console.error("Failed to complete database pull:", e);
@@ -808,10 +920,9 @@ const APP = new VantageState();
 // ----------------------------------------------------
 // UI Rendering Controllers
 // ----------------------------------------------------
-
-async function initApp() {
+async function initApp() {
     // Session Guard check if using Supabase Database
-    if (APP.dbProvider === "supabase" && APP.supabase) {
+    if (APP.supabase) {
         try {
             const { data: { session } } = await APP.supabase.auth.getSession();
             if (session) {
@@ -825,6 +936,9 @@ async function initApp() {
                 localStorage.setItem("vantage_user_name", name);
                 localStorage.setItem("vantage_user_role", role);
                 localStorage.setItem("vantage_user_dept", dept);
+
+                // Run onboarding/project check
+                await APP.checkOnboardingAndProjects();
             } else {
                 // No active session! Redirect to login page
                 console.warn("No active Supabase session found. Redirecting to auth.html");
@@ -834,6 +948,9 @@ async function initApp() {
         } catch (err) {
             console.error("Supabase session guard error:", err);
         }
+    } else {
+        // Fallback or offline check
+        await APP.checkOnboardingAndProjects();
     }
 
     setupUserSessionDisplay();
@@ -864,6 +981,24 @@ async function initApp() {
     if (inviteModal) {
         document.getElementById("invite-modal-close-btn").addEventListener("click", () => inviteModal.classList.remove("active"));
         document.getElementById("invite-modal-cancel-btn").addEventListener("click", () => inviteModal.classList.remove("active"));
+    }
+
+    // Bind Onboarding Form Submission
+    const onboardingForm = document.getElementById("onboarding-form");
+    if (onboardingForm) {
+        onboardingForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const name = document.getElementById("onboarding-project-name").value.trim();
+            const presetVal = document.querySelector('input[name="onboarding-preset"]:checked').value;
+            const apiKey = document.getElementById("onboarding-api-key").value.trim();
+            
+            if (!name || !apiKey) {
+                alert("Please fill out all required fields.");
+                return;
+            }
+            
+            await APP.initializeWorkspace(name, presetVal, apiKey);
+        });
     }
 
     // Parse URL invitation parameter on load
@@ -934,11 +1069,8 @@ async function initApp() {
         });
     }
 
-
-
     // Pull from cloud database on load if configured
-    const activeDbProvider = localStorage.getItem("vantage_db_provider") || "local";
-    if (activeDbProvider !== "local") {
+    if (APP.supabase) {
         Promise.all([
             APP.pullFromDatabase(),
             pullMembersFromDatabase()
@@ -1282,29 +1414,39 @@ function setupFilters() {
     // Workspace swapper dropdown binding
     const workspaceSelector = document.getElementById("workspace-selector-dropdown");
     if (workspaceSelector) {
-        workspaceSelector.value = APP.industry;
-        workspaceSelector.addEventListener("change", (e) => {
-            const selectedIndustry = e.target.value;
-            APP.industry = selectedIndustry;
-            localStorage.setItem("vantage_industry", selectedIndustry);
-            
-            rebuildFilters();
-            renderDepartmentBadges();
-            
-            const settingsPresetSelect = document.getElementById("industry-preset-select");
-            if (settingsPresetSelect) {
-                settingsPresetSelect.value = selectedIndustry;
+        workspaceSelector.addEventListener("change", async (e) => {
+            const selectedVal = e.target.value;
+            if (selectedVal === "+create_project") {
+                // Show onboarding overlay to create a new project
+                APP.showOnboardingOverlay(true);
+                // Reset selection to currently active project
+                workspaceSelector.value = localStorage.getItem("vantage_active_project_id") || "";
+                return;
             }
-            
-            if (APP.supabase) {
-                APP.pullFromSupabase().then(() => {
-                    renderActiveView();
-                });
-            } else {
-                if (APP.getActiveCards().length === 0) {
-                    APP.resetToPreset(selectedIndustry);
+
+            const activeProj = APP.projects.find(p => p.id === selectedVal);
+            if (activeProj) {
+                localStorage.setItem("vantage_active_project_id", activeProj.id);
+                APP.industry = activeProj.industry;
+                APP.apiKey = activeProj.gemini_api_key || "";
+                localStorage.setItem("vantage_api_key", APP.apiKey);
+                localStorage.setItem("vantage_industry", APP.industry);
+                
+                rebuildFilters();
+                renderDepartmentBadges();
+                
+                const settingsPresetSelect = document.getElementById("industry-preset-select");
+                if (settingsPresetSelect) {
+                    settingsPresetSelect.value = APP.industry;
                 }
-                renderActiveView();
+                
+                if (APP.supabase) {
+                    await APP.pullFromDatabase();
+                    await pullMembersFromDatabase();
+                    renderActiveView();
+                } else {
+                    renderActiveView();
+                }
             }
         });
     }
@@ -2119,59 +2261,29 @@ function setupSettings() {
         });
     }
 
-    // Dynamic DB fields toggling
-    const dbSelector = document.getElementById("settings-db-provider");
-    if (dbSelector) {
-        dbSelector.addEventListener("change", () => {
-            const val = dbSelector.value;
-            document.getElementById("settings-db-fields-supabase").classList.toggle("hide", val !== "supabase");
-            document.getElementById("settings-db-fields-firebase").classList.toggle("hide", val !== "firebase");
-            document.getElementById("settings-db-fields-pocketbase").classList.toggle("hide", val !== "pocketbase");
-        });
-    }
-
-    // Dynamic AI fields toggling
-    const aiSelector = document.getElementById("settings-ai-provider");
-    if (aiSelector) {
-        aiSelector.addEventListener("change", () => {
-            const val = aiSelector.value;
-            document.getElementById("settings-ai-fields-gemini").classList.toggle("hide", val !== "gemini");
-            document.getElementById("settings-ai-fields-openai").classList.toggle("hide", val !== "openai");
-            document.getElementById("settings-ai-fields-anthropic").classList.toggle("hide", val !== "anthropic");
-        });
-    }
-
     // Save DB Settings
     const saveDbBtn = document.getElementById("save-db-settings-btn");
     if (saveDbBtn) {
         saveDbBtn.addEventListener("click", () => {
             if (!checkPermission("change_db_settings")) return;
-            const dbVal = document.getElementById("settings-db-provider").value;
-            localStorage.setItem("vantage_db_provider", dbVal);
-
             localStorage.setItem("vantage_supabase_url", document.getElementById("settings-supabase-url").value.trim());
             localStorage.setItem("vantage_supabase_anon_key", document.getElementById("settings-supabase-key").value.trim());
-            localStorage.setItem("vantage_firebase_project_id", document.getElementById("settings-firebase-project").value.trim());
-            localStorage.setItem("vantage_firebase_api_key", document.getElementById("settings-firebase-key").value.trim());
-            localStorage.setItem("vantage_pocketbase_url", document.getElementById("settings-pocketbase-url").value.trim());
 
             // Update app state client instances
-            APP.dbProvider = dbVal;
             APP.supabaseUrl = localStorage.getItem("vantage_supabase_url");
             APP.supabaseAnonKey = localStorage.getItem("vantage_supabase_anon_key");
             APP.supabase = initSupabase(APP.supabaseUrl, APP.supabaseAnonKey);
-            APP.firebaseProjectId = localStorage.getItem("vantage_firebase_project_id");
-            APP.firebaseApiKey = localStorage.getItem("vantage_firebase_api_key");
-            APP.pocketbaseUrl = localStorage.getItem("vantage_pocketbase_url");
 
-            logAuditTrail("update_db_settings", `Changed database provider settings to "${dbVal}"`);
+            logAuditTrail("update_db_settings", `Changed database provider settings to Supabase`);
 
             const successText = document.getElementById("db-save-success");
-            successText.classList.remove("hide");
-            setTimeout(() => successText.classList.add("hide"), 1500);
+            if (successText) {
+                successText.classList.remove("hide");
+                setTimeout(() => successText.classList.add("hide"), 1500);
+            }
 
             // Re-render
-            if (dbVal !== "local") {
+            if (APP.supabase) {
                 APP.pullFromDatabase().then(() => {
                     renderActiveView();
                 });
@@ -2181,32 +2293,42 @@ function setupSettings() {
         });
     }
 
-    // Save AI Settings
+    // Save AI Settings (BYOK)
     const saveAiBtn = document.getElementById("save-ai-settings-btn");
     if (saveAiBtn) {
-        saveAiBtn.addEventListener("click", () => {
+        saveAiBtn.addEventListener("click", async () => {
             if (!checkPermission("change_ai_settings")) return;
-            const aiVal = document.getElementById("settings-ai-provider").value;
-            localStorage.setItem("vantage_ai_provider", aiVal);
+            const newKey = document.getElementById("settings-gemini-key").value.trim();
+            localStorage.setItem("vantage_api_key", newKey);
+            APP.apiKey = newKey;
 
-            localStorage.setItem("vantage_api_key", document.getElementById("settings-gemini-key").value.trim());
-            localStorage.setItem("vantage_openai_key", document.getElementById("settings-openai-key").value.trim());
-            localStorage.setItem("vantage_openai_model", document.getElementById("settings-openai-model").value);
-            localStorage.setItem("vantage_anthropic_key", document.getElementById("settings-anthropic-key").value.trim());
-            localStorage.setItem("vantage_anthropic_model", document.getElementById("settings-anthropic-model").value);
+            // Push updated Gemini key to the active project in vantage_projects table in Supabase
+            if (APP.supabase) {
+                const activeProjId = localStorage.getItem("vantage_active_project_id");
+                if (activeProjId) {
+                    try {
+                        const { error } = await APP.supabase
+                            .from("vantage_projects")
+                            .update({ gemini_api_key: newKey })
+                            .eq("id", activeProjId);
+                        if (error) {
+                            console.error("Failed to update project API key in Supabase:", error.message);
+                        } else {
+                            console.log("Updated project API key in Supabase");
+                        }
+                    } catch (err) {
+                        console.error("Failed to connect to Supabase to update API key:", err);
+                    }
+                }
+            }
 
-            APP.aiProvider = aiVal;
-            APP.apiKey = localStorage.getItem("vantage_api_key");
-            APP.openaiKey = localStorage.getItem("vantage_openai_key");
-            APP.openaiModel = localStorage.getItem("vantage_openai_model");
-            APP.anthropicKey = localStorage.getItem("vantage_anthropic_key");
-            APP.anthropicModel = localStorage.getItem("vantage_anthropic_model");
-
-            logAuditTrail("update_ai_settings", `Changed AI provider settings to "${aiVal}"`);
+            logAuditTrail("update_ai_settings", `Changed AI provider settings`);
 
             const successText = document.getElementById("ai-save-success");
-            successText.classList.remove("hide");
-            setTimeout(() => successText.classList.add("hide"), 1500);
+            if (successText) {
+                successText.classList.remove("hide");
+                setTimeout(() => successText.classList.add("hide"), 1500);
+            }
         });
     }
 
@@ -2311,37 +2433,13 @@ function setupSettings() {
 }
 
 function renderSettingsPanel() {
-    document.getElementById("industry-preset-select").value = APP.industry;
-    
-    // DB values
-    const dbVal = localStorage.getItem("vantage_db_provider") || "local";
-    document.getElementById("settings-db-provider").value = dbVal;
+    const presetSelect = document.getElementById("industry-preset-select");
+    if (presetSelect) presetSelect.value = APP.industry;
     
     document.getElementById("settings-supabase-url").value = localStorage.getItem("vantage_supabase_url") || "";
     document.getElementById("settings-supabase-key").value = localStorage.getItem("vantage_supabase_anon_key") || "";
-    document.getElementById("settings-firebase-project").value = localStorage.getItem("vantage_firebase_project_id") || "";
-    document.getElementById("settings-firebase-key").value = localStorage.getItem("vantage_firebase_api_key") || "";
-    document.getElementById("settings-pocketbase-url").value = localStorage.getItem("vantage_pocketbase_url") || "";
-
-    // Toggle fields
-    document.getElementById("settings-db-fields-supabase").classList.toggle("hide", dbVal !== "supabase");
-    document.getElementById("settings-db-fields-firebase").classList.toggle("hide", dbVal !== "firebase");
-    document.getElementById("settings-db-fields-pocketbase").classList.toggle("hide", dbVal !== "pocketbase");
-
-    // AI values
-    const aiVal = localStorage.getItem("vantage_ai_provider") || "gemini";
-    document.getElementById("settings-ai-provider").value = aiVal;
 
     document.getElementById("settings-gemini-key").value = localStorage.getItem("vantage_api_key") || "";
-    document.getElementById("settings-openai-key").value = localStorage.getItem("vantage_openai_key") || "";
-    document.getElementById("settings-openai-model").value = localStorage.getItem("vantage_openai_model") || "gpt-4o-mini";
-    document.getElementById("settings-anthropic-key").value = localStorage.getItem("vantage_anthropic_key") || "";
-    document.getElementById("settings-anthropic-model").value = localStorage.getItem("vantage_anthropic_model") || "claude-3-5-sonnet-20240620";
-
-    // Toggle fields
-    document.getElementById("settings-ai-fields-gemini").classList.toggle("hide", aiVal !== "gemini");
-    document.getElementById("settings-ai-fields-openai").classList.toggle("hide", aiVal !== "openai");
-    document.getElementById("settings-ai-fields-anthropic").classList.toggle("hide", aiVal !== "anthropic");
 
     const webhookUrlInput = document.getElementById("settings-webhook-url");
     if (webhookUrlInput) {
@@ -3322,16 +3420,26 @@ window.addEventListener("DOMContentLoaded", () => {
 // ====================================================
 
 async function pullMembersFromDatabase() {
-    const dbProvider = localStorage.getItem("vantage_db_provider") || "local";
     const userEmail = localStorage.getItem("vantage_user_email") || "local-sandbox";
-    if (dbProvider === "local") return;
 
-    if (dbProvider === "supabase" && APP.supabase) {
+    if (APP.supabase) {
         try {
+            let ownerEmail = userEmail;
+            const { data: memberRec } = await APP.supabase
+                .from("vantage_members")
+                .select("workspace_owner")
+                .eq("email", userEmail)
+                .eq("status", "active")
+                .maybeSingle();
+            
+            if (memberRec) {
+                ownerEmail = memberRec.workspace_owner;
+            }
+
             const { data, error } = await APP.supabase
                 .from("vantage_members")
                 .select("*")
-                .eq("workspace_owner", userEmail);
+                .eq("workspace_owner", ownerEmail);
                 
             if (!error && data && data.length > 0) {
                 APP.members = data;
@@ -3339,56 +3447,6 @@ async function pullMembersFromDatabase() {
             }
         } catch (e) {
             console.error("Failed to query workspace members from Supabase:", e);
-        }
-    } else if (dbProvider === "firebase") {
-        const projectId = localStorage.getItem("vantage_firebase_project_id");
-        if (projectId) {
-            try {
-                const resp = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users?pageSize=100`);
-                if (resp.ok) {
-                    const resJson = await resp.json();
-                    if (resJson.documents) {
-                        const list = [];
-                        resJson.documents.forEach(d => {
-                            const fields = d.fields;
-                            if (fields) {
-                                list.push({
-                                    name: fields.name ? fields.name.stringValue : d.name.split("/").pop(),
-                                    role: fields.dept ? fields.dept.stringValue : "ops",
-                                    status: "active"
-                                });
-                            }
-                        });
-                        if (list.length > 0) {
-                            APP.members = list;
-                            localStorage.setItem("vantage_members", JSON.stringify(APP.members));
-                        }
-                    }
-                }
-            } catch(e) {
-                console.error("Firebase pull members failed:", e);
-            }
-        }
-    } else if (dbProvider === "pocketbase") {
-        const pbUrl = localStorage.getItem("vantage_pocketbase_url");
-        if (pbUrl) {
-            try {
-                const resp = await fetch(`${pbUrl}/api/collections/users/records?limit=100`);
-                if (resp.ok) {
-                    const resJson = await resp.json();
-                    if (resJson.items) {
-                        const list = resJson.items.map(item => ({
-                            name: item.name || item.email.split("@")[0],
-                            role: item.department || "ops",
-                            status: "active"
-                        }));
-                        APP.members = list;
-                        localStorage.setItem("vantage_members", JSON.stringify(APP.members));
-                    }
-                }
-            } catch(e) {
-                console.error("PocketBase pull members failed:", e);
-            }
         }
     }
 }
@@ -4054,7 +4112,7 @@ function openInviteModal(node) {
     
     copyBtn.replaceWith(copyBtn.cloneNode(true));
     document.getElementById("invite-copy-link-btn").addEventListener("click", handleCopy);
-;
+}
 
 // ====================================================
 // Phase 6: Team Management & Collaborator roster
